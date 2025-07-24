@@ -10,7 +10,7 @@ import {
 } from "recharts";
 
 interface FunnelChartProps {
-  data: {
+  data?: {
     startedDexSwap: number;
     connectedCereWallet: number;
     completedTrade: number;
@@ -72,9 +72,6 @@ export function FunnelChart({ data, onStageClick }: FunnelChartProps) {
               %)
             </p>
           )}
-          <p className="text-xs text-muted-foreground mt-1">
-            Click to view user activities
-          </p>
         </div>
       );
     }

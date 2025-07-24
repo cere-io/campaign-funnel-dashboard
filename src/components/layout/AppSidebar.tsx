@@ -1,6 +1,5 @@
-import React from "react"
 import { Home, BarChart3, Activity } from "lucide-react"
-import { api } from "../../lib/api"
+import type {FunnelData, ICommunity} from "../../lib/api.ts";
 
 // Navigation items
 const navigationItems = [
@@ -24,10 +23,15 @@ const navigationItems = [
 interface AppSidebarProps {
   activeView: string
   onViewChange: (view: string) => void
+  communityData?: ICommunity;
+  funnelData?: FunnelData;
   className?: string
 }
 
-export function AppSidebar({ activeView, onViewChange, className = "" }: AppSidebarProps) {
+export function AppSidebar({ activeView, communityData, funnelData, onViewChange, className = "" }: AppSidebarProps) {
+  const activeUsers = new Set(
+      (communityData?.messages || []).map((msg) => msg.fromUserName),
+  );
   return (
     <div className={`w-64 bg-background border-r border-border h-full flex flex-col ${className}`}>
       {/* Sidebar Header */}
@@ -68,23 +72,23 @@ export function AppSidebar({ activeView, onViewChange, className = "" }: AppSide
           <div className="px-3 py-2 space-y-3">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Active Users</span>
-              <span className="font-medium">5</span>
+              <span className="font-medium">{activeUsers.size}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Messages</span>
-              <span className="font-medium">5</span>
+              <span className="font-medium">{communityData?.messages?.length || 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Completed Trades</span>
-              <span className="font-medium">5</span>
+              <span className="font-medium">{funnelData?.completedTrade || 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Sentiment</span>
-              <span className="font-medium text-green-600">80%</span>
+              <span className="font-medium text-green-600">{(communityData?.sentimentAnalysis?.averageSentiment || 0) * 100}%</span>
             </div>
           </div>
         </div>
       </div>
     </div>
   )
-} 
+}

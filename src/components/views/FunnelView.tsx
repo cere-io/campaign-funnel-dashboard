@@ -1,4 +1,3 @@
-import React from "react";
 import {
   Card,
   CardContent,
@@ -9,14 +8,17 @@ import {
 import { FunnelChart } from "../funnel-chart";
 import { TrendChart } from "../trend-chart";
 import { KPICard } from "../kpi-card";
-import { api, type FunnelData, type HistoricalData } from "../../lib/api";
+import { type FunnelData, type HistoricalData } from "../../lib/api";
 import { TrendingUp, Users, Wallet, CheckCircle } from "lucide-react";
 import { format, subDays } from "date-fns";
+import { Loader } from "../ui/loader.tsx";
+import {useState} from "react";
 
 interface FunnelViewProps {
   selectedCampaign: string;
   dateRange: { from: Date; to: Date };
   isLoading: boolean;
+  funnelData?: FunnelData;
 }
 
 // Generate mock historical data for trends
@@ -35,57 +37,32 @@ const generateHistoricalData = () => {
 };
 
 export function FunnelView({
-  selectedCampaign,
-  dateRange,
+  funnelData,
   isLoading,
 }: FunnelViewProps) {
-  const [funnelData, setFunnelData] = React.useState<FunnelData | null>(null);
-  const [historicalData, setHistoricalData] = React.useState<HistoricalData[]>(
-    [],
+  const [historicalData,] = useState<HistoricalData[]>(
+    generateHistoricalData(),
   );
 
-  React.useEffect(() => {
-    const loadData = async () => {
-      try {
-        const response = await api.getFunnelData({
-          campaignId: selectedCampaign,
-          dateFrom: dateRange.from.toISOString(),
-          dateTo: dateRange.to.toISOString(),
-        });
-        // Use mock data for now since API might not be available
-        setFunnelData(response);
-        setHistoricalData(generateHistoricalData());
-      } catch (error) {
-        console.error("Failed to load funnel data:", error);
-      }
-    };
-
-    loadData();
-  }, [dateRange.from, dateRange.to, selectedCampaign]);
-
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Loading funnel data...</div>
-      </div>
-    );
+    return <Loader />;
   }
 
   const dataForDisplay = funnelData;
 
   // Calculate conversion rates
-  const startedToConnected = dataForDisplay ? (
-    (dataForDisplay.connectedCereWallet / dataForDisplay.startedDexSwap) *
-    100
-  ).toFixed(1) : 0;
-  const startedToCompleted = dataForDisplay ? (
-    (dataForDisplay.completedTrade / dataForDisplay.startedDexSwap) *
-    100
-  ).toFixed(1) : 0;
-  const connectedToCompleted = dataForDisplay ?(
-    (dataForDisplay.completedTrade / dataForDisplay.connectedCereWallet) *
-    100
-  ).toFixed(1) : 0;
+  const startedToConnected = dataForDisplay
+    ? (
+        (dataForDisplay.connectedCereWallet / dataForDisplay.startedDexSwap) *
+        100
+      ).toFixed(1)
+    : 0;
+  const startedToCompleted = dataForDisplay
+    ? (
+        (dataForDisplay.completedTrade / dataForDisplay.startedDexSwap) *
+        100
+      ).toFixed(1)
+    : 0;
 
   const handleKPIClick = (stage: string) => {
     console.log("KPI clicked:", stage);

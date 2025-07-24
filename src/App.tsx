@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { subDays } from "date-fns";
 
 import { Sheet, SheetContent } from "./components/ui/sheet";
@@ -9,7 +9,7 @@ import { OverviewView } from "./components/views/OverviewView";
 import { FunnelView } from "./components/views/FunnelView";
 import { UsersView } from "./components/views/UsersView";
 import { UserActivityDetail } from "./components/user-activity-detail";
-import { UsersList } from "./components/users-list";
+import { api, type FunnelData, type ICommunity } from "./lib/api.ts";
 
 export default function CommunityIntelligenceDashboard() {
   const [selectedOrganization, setSelectedOrganization] =
@@ -19,6 +19,7 @@ export default function CommunityIntelligenceDashboard() {
     from: subDays(new Date(), 7),
     to: new Date(),
   });
+  const [isRefresing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -26,35 +27,63 @@ export default function CommunityIntelligenceDashboard() {
   const [selectedView, setSelectedView] = useState<
     "dashboard" | "users" | "user-detail"
   >("dashboard");
-  const [selectedFunnelStage, setSelectedFunnelStage] = useState<string | null>(
+  const [, setSelectedFunnelStage] = useState<string | null>(
     null,
   );
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [activeView, setActiveView] = useState("overview");
 
+  const [funnelData, setFunnelData] = React.useState<FunnelData>();
+  const [communityData, setCommunityData] = React.useState<ICommunity>();
+
+  React.useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const [funnel, community] = await Promise.all([
+          api.getFunnelData({
+            campaignId: selectedCampaign,
+            dateFrom: dateRange.from.toISOString(),
+            dateTo: dateRange.to.toISOString(),
+          }),
+          api.getCommunityData(),
+        ]);
+        setFunnelData(funnel);
+        setCommunityData(community);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Failed to load overview data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [dateRange.from, dateRange.to, selectedCampaign]);
+
   const refreshData = async () => {
-    setIsLoading(true);
+    setIsRefreshing(true);
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000));
     setLastUpdated(new Date());
-    setIsLoading(false);
+    setIsRefreshing(false);
   };
 
-  const handleKPIClick = (stage: string) => {
-    setSelectedFunnelStage(stage);
-    setSelectedView("users");
-  };
+  // const handleKPIClick = (stage: string) => {
+  //   setSelectedFunnelStage(stage);
+  //   setSelectedView("users");
+  // };
 
-  const handleFunnelStageClick = (stage: string, count: number) => {
-    // Map funnel stage names to the same format used by KPI cards
-    let mappedStage = stage;
-    if (stage === "Started DEX Swap") mappedStage = "startedDexSwap";
-    if (stage === "Connected Wallet") mappedStage = "connectedCereWallet";
-    if (stage === "Completed Trade") mappedStage = "completedTrade";
-
-    setSelectedFunnelStage(mappedStage);
-    setSelectedView("users");
-  };
+  // const handleFunnelStageClick = (stage: string, count: number) => {
+  //   // Map funnel stage names to the same format used by KPI cards
+  //   let mappedStage = stage;
+  //   if (stage === "Started DEX Swap") mappedStage = "startedDexSwap";
+  //   if (stage === "Connected Wallet") mappedStage = "connectedCereWallet";
+  //   if (stage === "Completed Trade") mappedStage = "completedTrade";
+  //
+  //   setSelectedFunnelStage(mappedStage);
+  //   setSelectedView("users");
+  // };
 
   const renderContent = () => {
     // If we're in a specific user detail view, show that
@@ -66,26 +95,27 @@ export default function CommunityIntelligenceDashboard() {
         />
       );
     }
-
-    // If we're in users list view from funnel, show that
-    if (selectedView === "users") {
-      return (
-        <UsersList
-          stage={selectedFunnelStage}
-          onBack={() => setSelectedView("dashboard")}
-          onUserSelect={(user) => {
-            setSelectedUser(user);
-            setSelectedView("user-detail");
-          }}
-        />
-      );
-    }
+    // // If we're in users list view from funnel, show that
+    // if (selectedView === "users") {
+    //   return (
+    //     <UsersList
+    //       stage={selectedFunnelStage}
+    //       onBack={() => setSelectedView("dashboard")}
+    //       onUserSelect={(user) => {
+    //         setSelectedUser(user);
+    //         setSelectedView("user-detail");
+    //       }}
+    //     />
+    //   );
+    // }
 
     // Otherwise, show content based on activeView (sidebar navigation)
     switch (activeView) {
       case "overview":
         return (
           <OverviewView
+            funnelData={funnelData}
+            communityData={communityData}
             selectedCampaign={selectedCampaign}
             dateRange={dateRange}
             isLoading={isLoading}
@@ -94,6 +124,7 @@ export default function CommunityIntelligenceDashboard() {
       case "funnel":
         return (
           <FunnelView
+            funnelData={funnelData}
             selectedCampaign={selectedCampaign}
             dateRange={dateRange}
             isLoading={isLoading}
@@ -111,6 +142,8 @@ export default function CommunityIntelligenceDashboard() {
       default:
         return (
           <OverviewView
+            communityData={communityData}
+            funnelData={funnelData}
             selectedCampaign={selectedCampaign}
             dateRange={dateRange}
             isLoading={isLoading}
@@ -131,13 +164,23 @@ export default function CommunityIntelligenceDashboard() {
     <div className="min-h-screen flex bg-background">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
-        <AppSidebar activeView={activeView} onViewChange={handleViewChange} />
+        <AppSidebar
+          communityData={communityData}
+          funnelData={funnelData}
+          activeView={activeView}
+          onViewChange={handleViewChange}
+        />
       </div>
 
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
-          <AppSidebar activeView={activeView} onViewChange={handleViewChange} />
+          <AppSidebar
+            communityData={communityData}
+            funnelData={funnelData}
+            activeView={activeView}
+            onViewChange={handleViewChange}
+          />
         </SheetContent>
       </Sheet>
 
@@ -151,7 +194,7 @@ export default function CommunityIntelligenceDashboard() {
           setSelectedCampaign={setSelectedCampaign}
           dateRange={dateRange}
           setDateRange={setDateRange}
-          isLoading={isLoading}
+          isLoading={isLoading || isRefresing}
           onRefresh={refreshData}
           lastUpdated={lastUpdated}
           onSidebarToggle={() => setSidebarOpen(true)}

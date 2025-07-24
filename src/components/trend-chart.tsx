@@ -1,7 +1,5 @@
-import React from "react"
 
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts"
-import { format } from "date-fns"
 
 interface TrendChartProps {
   data: Array<{

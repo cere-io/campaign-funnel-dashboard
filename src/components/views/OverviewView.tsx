@@ -1,287 +1,54 @@
-import React from "react"
 import {
   TrendingUp,
   Users,
-  Wallet,
   CheckCircle,
   MessageSquare,
   Heart,
   Activity,
   Hash,
-} from "lucide-react"
-import { format, subDays } from "date-fns"
+} from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
-import { Badge } from "../ui/badge"
-import { FunnelChart } from "../funnel-chart"
-import { TrendChart } from "../trend-chart"
-import { KPICard } from "../kpi-card"
-import { api, type FunnelData, type CommunityData, type HistoricalData } from "../../lib/api"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
+import { Badge } from "../ui/badge";
+import { FunnelChart } from "../funnel-chart";
+import { type FunnelData, type ICommunity } from "../../lib/api";
+import { Loader } from "../ui/loader.tsx";
 
 interface OverviewViewProps {
-  selectedCampaign: string
-  dateRange: { from: Date; to: Date }
-  isLoading: boolean
+  selectedCampaign: string;
+  dateRange: { from: Date; to: Date };
+  isLoading: boolean;
+  communityData?: ICommunity;
+  funnelData?: FunnelData;
 }
 
-// Mock data based on the API response - ensure these numbers are used consistently
-const mockData = {
-  startedDexSwap: 64,
-  connectedCereWallet: 10,
-  completedTrade: 5,
-  executedAt: "2025-07-22T10:45:57.024Z",
-};
-
-// Mock community intelligence data
-const mockCommunityData: CommunityData = {
-  result: {
-    code: "SUCCESS",
-    data: {
-      processing_summary: {
-        timestamp: "2025-07-22T19:57:24.708Z",
-        total_messages: 5,
-        total_topics: 18,
-        new_topics_created: 2,
-        existing_topics_used: 16,
-        total_users: 5,
-      },
-      users_summary: [
-        {
-          user_id: 105,
-          username: "frustrated_user",
-          messages_in_batch: 1,
-          messages_assigned: 1,
-        },
-        {
-          user_id: 104,
-          username: "react_dev",
-          messages_in_batch: 1,
-          messages_assigned: 1,
-        },
-        {
-          user_id: 103,
-          username: "ai_researcher",
-          messages_in_batch: 1,
-          messages_assigned: 1,
-        },
-        {
-          user_id: 102,
-          username: "sports_fan",
-          messages_in_batch: 1,
-          messages_assigned: 1,
-        },
-        {
-          user_id: 101,
-          username: "webdev_enthusiast",
-          messages_in_batch: 1,
-          messages_assigned: 1,
-        },
-      ],
-      sentiment_analysis: {
-        positive_messages: 4,
-        negative_messages: 1,
-        neutral_messages: 0,
-        average_sentiment_confidence: 0.6795238095238095,
-        sentiment_by_user: [
-          {
-            user_id: 105,
-            username: "frustrated_user",
-            positive_count: 0,
-            negative_count: 1,
-            neutral_count: 0,
-            average_confidence: 0.8333333333333333,
-          },
-          {
-            user_id: 104,
-            username: "react_dev",
-            positive_count: 1,
-            negative_count: 0,
-            neutral_count: 0,
-            average_confidence: 0.5714285714285714,
-          },
-          {
-            user_id: 103,
-            username: "ai_researcher",
-            positive_count: 1,
-            negative_count: 0,
-            neutral_count: 0,
-            average_confidence: 0.6,
-          },
-          {
-            user_id: 102,
-            username: "sports_fan",
-            positive_count: 1,
-            negative_count: 0,
-            neutral_count: 0,
-            average_confidence: 0.6428571428571428,
-          },
-          {
-            user_id: 101,
-            username: "webdev_enthusiast",
-            positive_count: 1,
-            negative_count: 0,
-            neutral_count: 0,
-            average_confidence: 0.75,
-          },
-        ],
-      },
-      topics: [
-        {
-          id: 16,
-          name: "General Discussion",
-          keywords: ["general", "discussion", "chat"],
-          is_new: false,
-          message_count: 1,
-        },
-        {
-          id: 15,
-          name: "Programming & Development",
-          keywords: ["programming", "development", "code"],
-          is_new: false,
-          message_count: 1,
-        },
-        {
-          id: 17,
-          name: "General Discussion",
-          keywords: ["general", "discussion", "chat"],
-          is_new: true,
-          message_count: 1,
-        },
-        {
-          id: 18,
-          name: "General Discussion",
-          keywords: ["general", "discussion", "chat"],
-          is_new: true,
-          message_count: 1,
-        },
-      ],
-      assignments_summary: [
-        {
-          message_id: 589888,
-          topic_id: 17,
-          topic_name: "General Discussion",
-          topic_confidence: 1,
-          is_new_topic: true,
-          message_preview:
-            "I hate this new update, it's terrible! Everything ...",
-          user: {
-            id: 105,
-            username: "frustrated_user",
-          },
-          sentiment: "negative",
-        },
-        {
-          message_id: 388548,
-          topic_id: 14,
-          topic_name: "General Discussion",
-          topic_confidence: 0.7924247812140777,
-          is_new_topic: false,
-          message_preview:
-            "React hooks are so much better than class componen...",
-          user: {
-            id: 104,
-            username: "react_dev",
-          },
-          sentiment: "positive",
-        },
-        {
-          message_id: 639454,
-          topic_id: 18,
-          topic_name: "General Discussion",
-          topic_confidence: 1,
-          is_new_topic: true,
-          message_preview:
-            "This new AI research paper on neural networks is g...",
-          user: {
-            id: 103,
-            username: "ai_researcher",
-          },
-          sentiment: "positive",
-        },
-        {
-          message_id: 635246,
-          topic_id: 15,
-          topic_name: "Programming & Development",
-          topic_confidence: 0.7207983471776482,
-          is_new_topic: false,
-          message_preview:
-            "The football game last night was incredible! What ...",
-          user: {
-            id: 102,
-            username: "sports_fan",
-          },
-          sentiment: "positive",
-        },
-        {
-          message_id: 408202,
-          topic_id: 16,
-          topic_name: "General Discussion",
-          topic_confidence: 0.7745326521381823,
-          is_new_topic: false,
-          message_preview:
-            "I absolutely love this new JavaScript framework! I...",
-          user: {
-            id: 101,
-            username: "webdev_enthusiast",
-          },
-          sentiment: "positive",
-        },
-      ],
-    },
-  },
-};
-
-// Generate mock historical data for trends
-const generateHistoricalData = () => {
-  const data = [];
-  for (let i = 6; i >= 0; i--) {
-    const date = subDays(new Date(), i);
-    data.push({
-      date: format(date, "yyyy-MM-dd"),
-      startedDexSwap: Math.floor(Math.random() * 30) + 40,
-      connectedCereWallet: Math.floor(Math.random() * 8) + 6,
-      completedTrade: Math.floor(Math.random() * 4) + 3,
-    });
-  }
-  return data;
-};
-
-export function OverviewView({ selectedCampaign, dateRange, isLoading }: OverviewViewProps) {
-  const [funnelData, setFunnelData] = React.useState<FunnelData | null>(null)
-  const [communityData, setCommunityData] = React.useState<CommunityData | null>(null)
-  const [historicalData, setHistoricalData] = React.useState<HistoricalData[]>([])
-
-  React.useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Use mock data for now since API might not be available
-        setFunnelData(mockData)
-        setCommunityData(mockCommunityData)
-        setHistoricalData(generateHistoricalData())
-      } catch (error) {
-        console.error("Failed to load overview data:", error)
-      }
-    }
-
-    loadData()
-  }, [selectedCampaign])
-
+export function OverviewView({
+  communityData,
+  funnelData,
+  isLoading,
+}: OverviewViewProps) {
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Loading overview...</div>
-      </div>
-    )
+    return <Loader />;
   }
 
   // Calculate community metrics
-  const communityDataForDisplay = communityData?.result.data || mockCommunityData.result.data;
+  const communityDataForDisplay = communityData;
   const sentimentScore = (
-    (communityDataForDisplay.sentiment_analysis.positive_messages /
-      (communityDataForDisplay.sentiment_analysis.positive_messages +
-        communityDataForDisplay.sentiment_analysis.negative_messages)) *
+    ((communityDataForDisplay?.sentimentAnalysis?.positive || 0) /
+      ((communityDataForDisplay?.sentimentAnalysis?.positive || 0) +
+        (communityDataForDisplay?.sentimentAnalysis?.negative || 0))) *
     100
   ).toFixed(1);
+
+  const activeUsers = new Set(
+    (communityDataForDisplay?.messages || []).map((msg) => msg.fromUserName),
+  );
 
   const handleFunnelStageClick = (stage: string, count: number) => {
     // This would be handled by parent component
@@ -304,7 +71,7 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
           </CardHeader>
           <CardContent>
             <div className="text-2xl md:text-3xl font-bold text-blue-900 dark:text-blue-100">
-              {funnelData?.completedTrade || mockData.completedTrade}
+              {funnelData?.completedTrade}
             </div>
             <div className="flex items-center mt-2">
               <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
@@ -328,7 +95,7 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
           </CardHeader>
           <CardContent>
             <div className="text-2xl md:text-3xl font-bold text-green-900 dark:text-green-100">
-              {communityDataForDisplay.processing_summary.total_users}
+              {activeUsers.size}
             </div>
             <div className="flex items-center mt-2">
               <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
@@ -376,7 +143,7 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
           </CardHeader>
           <CardContent>
             <div className="text-2xl md:text-3xl font-bold text-orange-900 dark:text-orange-100">
-              {communityDataForDisplay.processing_summary.total_messages}
+              {communityDataForDisplay?.messages.length || 0}
             </div>
             <div className="flex items-center mt-2">
               <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
@@ -406,7 +173,7 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
           </CardHeader>
           <CardContent className="pt-0">
             <FunnelChart
-              data={funnelData || mockData}
+              data={funnelData}
               onStageClick={handleFunnelStageClick}
             />
           </CardContent>
@@ -440,13 +207,13 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
                       fill="none"
                       stroke="#10b981"
                       strokeWidth="2"
-                      strokeDasharray={`${sentimentScore}, 100`}
+                      strokeDasharray={`${(communityDataForDisplay?.sentimentAnalysis?.averageSentiment  || 0) * 100}, 100`}
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
                       <div className="text-xl sm:text-2xl font-bold text-green-600">
-                        {sentimentScore}%
+                        {(communityDataForDisplay?.sentimentAnalysis?.averageSentiment  || 0) * 100}%
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Positive
@@ -464,7 +231,7 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
                   <span className="text-sm">Positive</span>
                 </div>
                 <span className="text-sm font-medium">
-                  {communityDataForDisplay.sentiment_analysis.positive_messages}
+                  {communityDataForDisplay?.sentimentAnalysis?.positive || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -473,7 +240,7 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
                   <span className="text-sm">Neutral</span>
                 </div>
                 <span className="text-sm font-medium">
-                  {communityDataForDisplay.sentiment_analysis.neutral_messages}
+                  {communityDataForDisplay?.sentimentAnalysis?.neutral || 0}
                 </span>
               </div>
               <div className="flex items-center justify-between">
@@ -482,7 +249,7 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
                   <span className="text-sm">Negative</span>
                 </div>
                 <span className="text-sm font-medium">
-                  {communityDataForDisplay.sentiment_analysis.negative_messages}
+                  {communityDataForDisplay?.sentimentAnalysis?.negative || 0}
                 </span>
               </div>
             </div>
@@ -504,18 +271,18 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {communityDataForDisplay.assignments_summary
+              {communityDataForDisplay?.messages
                 ?.slice(0, 4)
-                .map((activity: any, index: number) => (
+                .map((message, index: number) => (
                   <div
-                    key={activity.message_id}
+                    key={message.topic + index}
                     className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                   >
                     <div
                       className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                        activity.sentiment === "positive"
+                        Number(message.sentiment) >= 0.5
                           ? "bg-green-500"
-                          : activity.sentiment === "negative"
+                          : Number(message.sentiment) <= 0.5
                             ? "bg-red-500"
                             : "bg-gray-400"
                       }`}
@@ -523,21 +290,28 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
                         <span className="text-sm font-medium">
-                          {activity.user.username}
+                          {message.fromUserName}
                         </span>
-                        <Badge variant="outline" className="text-xs w-fit">
-                          {activity.topic_name}
+                        <Badge
+                          variant="outline"
+                          className="text-xs w-fit whitespace-nowrap"
+                        >
+                          {message.topic}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground line-clamp-2">
-                        {activity.message_preview}
+                        {message.content}
                       </p>
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
                         <span className="text-xs text-muted-foreground">
                           Confidence:{" "}
-                          {(activity.topic_confidence * 100).toFixed(0)}%
+                          {/*{(activity.topic_confidence * 100).toFixed(0)}%*/}
+                          TODO
                         </span>
-                        {activity.is_new_topic && (
+                        {(communityDataForDisplay.topics.find(
+                          (topic) => topic.name === message.topic,
+                        )?.is_new ||
+                          false) && (
                           <Badge variant="secondary" className="text-xs w-fit">
                             New Topic
                           </Badge>
@@ -560,9 +334,8 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {communityDataForDisplay.topics
-                ?.filter((t: any) => t.message_count > 0)
-                .map((topic: any, index: number) => (
+              {(communityDataForDisplay?.topics || []).map(
+                (topic, index: number) => (
                   <div
                     key={topic.id}
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
@@ -589,15 +362,17 @@ export function OverviewView({ selectedCampaign, dateRange, isLoading }: Overvie
                         </Badge>
                       )}
                       <Badge variant="outline" className="text-xs">
-                        {topic.message_count} msgs
+                        {/*{topic.message_count} msgs*/}
+                        topic.message_count TODO
                       </Badge>
                     </div>
                   </div>
-                ))}
+                ),
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
     </div>
-  )
-} 
+  );
+}
