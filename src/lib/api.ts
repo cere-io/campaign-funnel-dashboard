@@ -1,82 +1,118 @@
+import { env, logger, getApiUrl } from "./env";
+import apiClient from "../services/apiClient.ts";
+
 // API Types
 export interface FunnelData {
-  startedDexSwap: number
-  connectedCereWallet: number
-  completedTrade: number
-  executedAt: string
+  startedDexSwap: number;
+  connectedCereWallet: number;
+  completedTrade: number;
+  executedAt: string;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  dataServiceId: string;
+  archived: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Campaign {
+  campaignId: number;
+  status: number;
+  startDate: Date;
+  campaignRules: string;
+  endDate: Date;
+  campaignName: string | null;
+  type: number | null;
+  likeId: string | null;
+  archive: number;
+  mobile: number | null;
+  userName: string | null;
+  modDate: Date | null;
+  guid: string | null;
+  formData: string | null;
+  campaignApps: ICampaignApp[];
+}
+
+export interface ICampaignApp {
+  id: number;
+  name: string;
+  campaignId: number;
 }
 
 export interface CommunityData {
   result: {
-    code: string
+    code: string;
     data: {
       processing_summary: {
-        timestamp: string
-        total_messages: number
-        total_topics: number
-        new_topics_created: number
-        existing_topics_used: number
-        total_users: number
-      }
+        timestamp: string;
+        total_messages: number;
+        total_topics: number;
+        new_topics_created: number;
+        existing_topics_used: number;
+        total_users: number;
+      };
       users_summary: Array<{
-        user_id: number
-        username: string
-        messages_in_batch: number
-        messages_assigned: number
-      }>
+        user_id: number;
+        username: string;
+        messages_in_batch: number;
+        messages_assigned: number;
+      }>;
       sentiment_analysis: {
-        positive_messages: number
-        negative_messages: number
-        neutral_messages: number
-        average_sentiment_confidence: number
+        positive_messages: number;
+        negative_messages: number;
+        neutral_messages: number;
+        average_sentiment_confidence: number;
         sentiment_by_user: Array<{
-          user_id: number
-          username: string
-          positive_count: number
-          negative_count: number
-          neutral_count: number
-          average_confidence: number
-        }>
-      }
+          user_id: number;
+          username: string;
+          positive_count: number;
+          negative_count: number;
+          neutral_count: number;
+          average_confidence: number;
+        }>;
+      };
       topics: Array<{
-        id: number
-        name: string
-        keywords: string[]
-        is_new: boolean
-        message_count: number
-      }>
+        id: number;
+        name: string;
+        keywords: string[];
+        is_new: boolean;
+        message_count: number;
+      }>;
       assignments_summary: Array<{
-        message_id: number
-        topic_id: number
-        topic_name: string
-        topic_confidence: number
-        is_new_topic: boolean
-        message_preview: string
+        message_id: number;
+        topic_id: number;
+        topic_name: string;
+        topic_confidence: number;
+        is_new_topic: boolean;
+        message_preview: string;
         user: {
-          id: number
-          username: string
-        }
-        sentiment: string
-      }>
-    }
-  }
+          id: number;
+          username: string;
+        };
+        sentiment: string;
+      }>;
+    };
+  };
 }
 
 export interface HistoricalData {
-  date: string
-  startedDexSwap: number
-  connectedCereWallet: number
-  completedTrade: number
+  date: string;
+  startedDexSwap: number;
+  connectedCereWallet: number;
+  completedTrade: number;
 }
 
 export interface User {
-  id: string
-  username: string
-  account_id: string
-  completed_at: string
-  total_points: number
-  quests_completed: number
-  last_activity: string
+  id: string;
+  username: string;
+  account_id: string;
+  completed_at: string;
+  total_points: number;
+  quests_completed: number;
+  last_activity: string;
 }
 
 // Mock Data
@@ -85,7 +121,7 @@ const mockFunnelData: FunnelData = {
   connectedCereWallet: 10,
   completedTrade: 5,
   executedAt: "2025-07-22T10:45:57.024Z",
-}
+};
 
 const mockCommunityData: CommunityData = {
   result: {
@@ -216,7 +252,8 @@ const mockCommunityData: CommunityData = {
           topic_name: "General Discussion",
           topic_confidence: 1,
           is_new_topic: true,
-          message_preview: "I hate this new update, it's terrible! Everything ...",
+          message_preview:
+            "I hate this new update, it's terrible! Everything ...",
           user: {
             id: 105,
             username: "frustrated_user",
@@ -229,7 +266,8 @@ const mockCommunityData: CommunityData = {
           topic_name: "General Discussion",
           topic_confidence: 0.7924247812140777,
           is_new_topic: false,
-          message_preview: "React hooks are so much better than class componen...",
+          message_preview:
+            "React hooks are so much better than class componen...",
           user: {
             id: 104,
             username: "react_dev",
@@ -242,7 +280,8 @@ const mockCommunityData: CommunityData = {
           topic_name: "General Discussion",
           topic_confidence: 1,
           is_new_topic: true,
-          message_preview: "This new AI research paper on neural networks is g...",
+          message_preview:
+            "This new AI research paper on neural networks is g...",
           user: {
             id: 103,
             username: "ai_researcher",
@@ -255,7 +294,8 @@ const mockCommunityData: CommunityData = {
           topic_name: "Programming & Development",
           topic_confidence: 0.7207983471776482,
           is_new_topic: false,
-          message_preview: "The football game last night was incredible! What ...",
+          message_preview:
+            "The football game last night was incredible! What ...",
           user: {
             id: 102,
             username: "sports_fan",
@@ -268,7 +308,8 @@ const mockCommunityData: CommunityData = {
           topic_name: "General Discussion",
           topic_confidence: 0.7745326521381823,
           is_new_topic: false,
-          message_preview: "I absolutely love this new JavaScript framework! I...",
+          message_preview:
+            "I absolutely love this new JavaScript framework! I...",
           user: {
             id: 101,
             username: "webdev_enthusiast",
@@ -278,7 +319,7 @@ const mockCommunityData: CommunityData = {
       ],
     },
   },
-}
+};
 
 const mockUsers: User[] = [
   {
@@ -326,83 +367,274 @@ const mockUsers: User[] = [
     quests_completed: 6,
     last_activity: "2025-07-19T14:20:30.000Z",
   },
-]
+];
 
 // API Functions
 export const api = {
+  async getOrganizations(token?: string): Promise<Organization[]> {
+    try {
+      const response = await apiClient.get(
+        "/data-services/2105/organizations",
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        },
+      );
+      return response.data.data;
+    } catch (error) {
+      logger.error("Error fetching organizations data:", error);
+      return [];
+    }
+  },
+
+  async getCampaigns(
+    organizationId: string,
+    token?: string,
+  ): Promise<Campaign[]> {
+    try {
+      const response = await apiClient.get("/campaign", {
+        params: {
+          organizationId,
+        },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+
+      return response.data.data;
+    } catch (error) {
+      logger.error("Error fetching organizations data:", error);
+      return [];
+    }
+  },
+
+  async getUsers({
+    campaignId,
+    dateFrom,
+    dateTo,
+  }: {
+    campaignId: string;
+    dateFrom: string;
+    dateTo: string;
+  }): Promise<User[]> {
+    try {
+      const response = await fetch(
+        "https://ai-rule.cere.io/rule/data-service/2105/query/campaign_funnel",
+        {
+          method: "POST",
+          body: JSON.stringify({}),
+        },
+      );
+    } catch (e) {}
+  },
   // Funnel Data
-  async getFunnelData(): Promise<FunnelData> {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-    return mockFunnelData
+  async getFunnelData({
+    campaignId,
+    dateFrom,
+    dateTo,
+  }: {
+    campaignId: string;
+    dateFrom: string;
+    dateTo: string;
+  }): Promise<FunnelData> {
+    logger.debug("Fetching funnel data");
+
+    try {
+      const response = await fetch(
+        "https://ai-rule.cere.io/rule/data-service/2105/query/campaign_funnel",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            params: {
+              campaign_id: campaignId,
+              from: dateFrom,
+              to: dateTo,
+            },
+          }),
+        },
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      logger.debug("Funnel data fetched successfully", data);
+      return data.result.data.data;
+    } catch (error) {
+      logger.error("Error fetching funnel data:", error);
+      // Fallback to mock data
+      return mockFunnelData;
+    }
   },
 
   // Community Data
   async getCommunityData(): Promise<CommunityData> {
-    await new Promise(resolve => setTimeout(resolve, 300))
-    return mockCommunityData
+    logger.debug("Fetching community data");
+
+    try {
+      if (env.ENVIRONMENT === "development") {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        logger.debug("Using mock community data");
+        return mockCommunityData;
+      }
+
+      const response = await fetch(getApiUrl("community"));
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      logger.debug("Community data fetched successfully", data);
+      return data;
+    } catch (error) {
+      logger.error("Error fetching community data:", error);
+      return mockCommunityData;
+    }
   },
 
   // Historical Data
   async getHistoricalData(days: number = 7): Promise<HistoricalData[]> {
-    await new Promise(resolve => setTimeout(resolve, 200))
-    
-    const data: HistoricalData[] = []
-    for (let i = days - 1; i >= 0; i--) {
-      const date = new Date()
-      date.setDate(date.getDate() - i)
-      
-      data.push({
-        date: date.toISOString().split('T')[0],
-        startedDexSwap: Math.floor(Math.random() * 30) + 40,
-        connectedCereWallet: Math.floor(Math.random() * 8) + 6,
-        completedTrade: Math.floor(Math.random() * 4) + 3,
-      })
+    logger.debug(`Fetching historical data for ${days} days`);
+
+    try {
+      if (env.ENVIRONMENT === "development") {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        const data: HistoricalData[] = [];
+        for (let i = days - 1; i >= 0; i--) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+
+          data.push({
+            date: date.toISOString().split("T")[0],
+            startedDexSwap: Math.floor(Math.random() * 30) + 40,
+            connectedCereWallet: Math.floor(Math.random() * 8) + 6,
+            completedTrade: Math.floor(Math.random() * 4) + 3,
+          });
+        }
+
+        logger.debug("Using mock historical data");
+        return data;
+      }
+
+      const response = await fetch(getApiUrl(`historical?days=${days}`));
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      logger.debug("Historical data fetched successfully", data);
+      return data;
+    } catch (error) {
+      logger.error("Error fetching historical data:", error);
+      // Return empty array as fallback
+      return [];
     }
-    
-    return data
   },
 
   // Users
   async getUsers(stage?: string | null): Promise<User[]> {
-    await new Promise(resolve => setTimeout(resolve, 400))
-    return mockUsers
+    logger.debug("Fetching users data", { stage });
+
+    try {
+      if (env.ENVIRONMENT === "development") {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        logger.debug("Using mock users data");
+        return mockUsers;
+      }
+
+      const url = stage
+        ? getApiUrl(`users?stage=${stage}`)
+        : getApiUrl("users");
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      logger.debug("Users data fetched successfully", data);
+      return data;
+    } catch (error) {
+      logger.error("Error fetching users data:", error);
+      return mockUsers;
+    }
   },
 
   // User Activity
   async getUserActivity(userId: string): Promise<any> {
-    await new Promise(resolve => setTimeout(resolve, 600))
-    // Return mock user activity data
-    return {
-      username: "mazhutoanton",
-      account_id: "6R44Eo6brL3YMMtFuocjgdCN9REzpHHWCGS5AVh49btFN13J",
-      organization_id: "2115",
-      campaign_id: "58",
-      activities: {
-        "2025-07-10T15:18:24.425Z": {
+    logger.debug("Fetching user activity", { userId });
+
+    try {
+      if (env.ENVIRONMENT === "development") {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        logger.debug("Using mock user activity data");
+        return {
+          username: "mazhutoanton",
           account_id: "6R44Eo6brL3YMMtFuocjgdCN9REzpHHWCGS5AVh49btFN13J",
           organization_id: "2115",
           campaign_id: "58",
-          quest_type: "quiz",
-          points: 30,
-          started_at: "2025-07-10T15:18:24.425Z",
-          payload: {
-            answers: [
-              { quiz_id: "quiz-1752158562660", question_id: "question-1752158562660", answer_id: "option-1-1752158562660" },
-            ],
+          activities: {
+            "2025-07-10T15:18:24.425Z": {
+              account_id: "6R44Eo6brL3YMMtFuocjgdCN9REzpHHWCGS5AVh49btFN13J",
+              organization_id: "2115",
+              campaign_id: "58",
+              quest_type: "quiz",
+              points: 30,
+              started_at: "2025-07-10T15:18:24.425Z",
+              payload: {
+                answers: [
+                  {
+                    quiz_id: "quiz-1752158562660",
+                    question_id: "question-1752158562660",
+                    answer_id: "option-1-1752158562660",
+                  },
+                ],
+              },
+              completed_at: "2025-07-10T15:18:38.041Z",
+            },
           },
-          completed_at: "2025-07-10T15:18:38.041Z",
-        },
-      },
+        };
+      }
+
+      const response = await fetch(getApiUrl(`users/${userId}/activity`));
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      logger.debug("User activity fetched successfully", data);
+      return data;
+    } catch (error) {
+      logger.error("Error fetching user activity:", error);
+      return null;
     }
   },
 
   // Refresh Data
   async refreshData(): Promise<{ success: boolean; timestamp: string }> {
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    return {
-      success: true,
-      timestamp: new Date().toISOString(),
+    logger.debug("Refreshing data");
+
+    try {
+      if (env.ENVIRONMENT === "development") {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        logger.debug("Mock data refresh completed");
+        return {
+          success: true,
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const response = await fetch(getApiUrl("refresh"), { method: "POST" });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      logger.debug("Data refresh completed successfully", data);
+      return data;
+    } catch (error) {
+      logger.error("Error refreshing data:", error);
+      return {
+        success: false,
+        timestamp: new Date().toISOString(),
+      };
     }
   },
-} 
+};
