@@ -90,6 +90,79 @@ export interface User {
   last_activity: string;
 }
 
+export type QuizPayload = {
+  answers: {
+    quiz_id: string;
+    question_id: string;
+    answer_id: string;
+  }[];
+};
+
+export type VideoPayload = {
+  video_id: string;
+  video_length: number;
+  segment_length: string;
+  segments_watched: number[];
+  last_watched_segment: number;
+};
+
+export type CustomPayload = {
+  questId: string;
+  subtype: string;
+  startEvent: string;
+  completedEvent: string;
+  // Additional fields for DEX swaps
+  swapDetails?: {
+    from: string;
+    to: string;
+    value: string;
+    fromAmount: string;
+    toAmount: string;
+    tokenFrom: string;
+    tokenTo: string;
+  };
+  // Additional fields for social connections
+  socialPlatform?: string;
+  socialUsername?: string;
+};
+
+export type QuestPayload = QuizPayload | VideoPayload | CustomPayload;
+
+export type QuestActivity = {
+  account_id: string;
+  organization_id: string | number;
+  campaign_id: string | number;
+  quest_type: string;
+  points: number;
+  started_at: string;
+  completed_at: string | null;
+  payload: QuestPayload;
+};
+
+export type QuestActivitiesMap = Record<string, QuestActivity>;
+
+type GetUserActivitiesResponse = {
+  result: {
+    code: "SUCCESS" | string;
+    data: {
+      success: boolean;
+      data: QuestActivitiesMap;
+      emittedEvents: unknown[];
+    };
+  };
+  metadata: {
+    operation: {
+      id: string;
+      name: string;
+    };
+    raft: {
+      id: string;
+      name: string;
+    };
+    executedAt: string;
+  };
+};
+
 // API Functions
 export const api = {
   async getOrganizations(token?: string): Promise<Organization[]> {
@@ -129,8 +202,8 @@ export const api = {
   async getUsers({
     organizationId,
     campaignId,
-    dateFrom,
-    dateTo,
+    // dateFrom,
+    // dateTo,
   }: {
     campaignId: string;
     organizationId: string;
@@ -304,7 +377,7 @@ export const api = {
   }: {
     userId: string;
     campaignId: string;
-  }): Promise<any> {
+  }): Promise<QuestActivitiesMap> {
     logger.debug("Fetching user activity", { userId });
 
     try {
@@ -327,12 +400,12 @@ export const api = {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: GetUserActivitiesResponse = await response.json();
       logger.debug("User activity fetched successfully", data);
       return data.result.data.data;
     } catch (error) {
       logger.error("Error fetching user activity:", error);
-      return null;
+      return {};
     }
   },
 

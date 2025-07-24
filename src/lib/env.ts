@@ -7,7 +7,7 @@ export interface EnvironmentConfig {
   APP_NAME: string
   APP_VERSION: string
   ROB_API_URL: string
-  ENVIRONMENT: 'development' | 'staging' | 'production'
+  ENVIRONMENT: 'dev' | 'stage' | 'prod'
   DEBUG: boolean
   LOG_LEVEL: 'debug' | 'info' | 'warn' | 'error'
 }
@@ -42,17 +42,17 @@ export const env: EnvironmentConfig = {
 /**
  * Check if current environment is development
  */
-export const isDevelopment = env.ENVIRONMENT === 'development'
+export const isDevelopment = env.ENVIRONMENT === 'dev'
 
 /**
  * Check if current environment is staging
  */
-export const isStaging = env.ENVIRONMENT === 'staging'
+export const isStaging = env.ENVIRONMENT === 'stage'
 
 /**
  * Check if current environment is production
  */
-export const isProduction = env.ENVIRONMENT === 'production'
+export const isProduction = env.ENVIRONMENT === 'prod'
 
 /**
  * Get API URL for a specific endpoint

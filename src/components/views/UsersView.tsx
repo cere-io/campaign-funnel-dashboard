@@ -1,4 +1,4 @@
-import React, {useEffect} from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -7,10 +7,11 @@ import {
   CardTitle,
 } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { Search, ArrowLeft, Users, Trophy } from "lucide-react";
+import { Search, Users, Trophy } from "lucide-react";
 import { api, type User } from "../../lib/api";
+import { UserActivityDetail } from "../user-activity-detail";
+import {Loader} from "../ui/loader.tsx";
 
 interface UsersViewProps {
   selectedCampaign: string;
@@ -23,15 +24,17 @@ export function UsersView({
   selectedCampaign,
   selectedOrganization,
   dateRange,
-  isLoading,
+  isLoading: isRefreshing,
 }: UsersViewProps) {
-  const [users, setUsers] = React.useState<User[]>([]);
-  const [selectedUser, setSelectedUser] = React.useState<User | null>(null);
-  const [searchTerm, setSearchTerm] = React.useState("");
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  console.log({selectedUser})
+  console.log({ selectedUser });
   useEffect(() => {
     const loadData = async () => {
+      setIsLoading(true);
       try {
         const response = await api.getUsers({
           campaignId: selectedCampaign,
@@ -40,48 +43,33 @@ export function UsersView({
           dateTo: dateRange.to.toISOString(),
         });
         setUsers(response);
+        setIsLoading(false);
       } catch (error) {
         console.error("Failed to load users data:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     loadData();
   }, [dateRange.from, dateRange.to, selectedCampaign, selectedOrganization]);
 
-  useEffect(() => {
-    const loadData = async () => {
-      if (!selectedUser) return
-      try {
-        const response = await api.getUserActivity({
-          campaignId: selectedCampaign,
-          userId: selectedUser.user,
-        });
-        setSelectedUser(response);
-      } catch (error) {
-        console.error("Failed to load users data:", error);
-      }
-    };
-
-    loadData();
-  }, [selectedCampaign, selectedUser])
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Loading users data...</div>
-      </div>
-    );
+  if (isLoading || isRefreshing) {
+    return <Loader />;
   }
 
   const filteredUsers = users.filter(
     (user) =>
       user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.user?.toLowerCase().includes(searchTerm.toLowerCase())
+      user.user?.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const averagePoints = users.length > 0
-    ? Math.round(users.reduce((sum, user) => sum + user.points, 0) / users.length)
-    : 0;
+  const averagePoints =
+    users.length > 0
+      ? Math.round(
+          users.reduce((sum, user) => sum + user.points, 0) / users.length,
+        )
+      : 0;
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -100,118 +88,11 @@ export function UsersView({
 
   if (selectedUser) {
     return (
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={() => setSelectedUser(null)}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Users
-          </Button>
-        </div>
-
-        {/* User Profile */}
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-            <span className="text-lg font-semibold text-primary">
-              {selectedUser.username?.slice(0, 2).toUpperCase()}
-            </span>
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold">{selectedUser.username}</h2>
-            <p className="text-sm text-muted-foreground font-mono">
-              {selectedUser.user}
-            </p>
-          </div>
-        </div>
-
-        {/* User Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                    Amount Traded
-                  </p>
-                  <p className="text-2xl font-bold text-green-900 dark:text-green-100">
-                    $2,450
-                  </p>
-                  <p className="text-xs text-green-600 dark:text-green-400">
-                    Following DEX swaps
-                  </p>
-                </div>
-                <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                  <span className="text-green-600 text-sm">$</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-orange-700 dark:text-orange-300">
-                    Preferred Quests
-                  </p>
-                  <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">
-                    Video, custom (3), quiz (1)
-                  </p>
-                  <p className="text-xs text-orange-600 dark:text-orange-400">
-                    Video highlighted
-                  </p>
-                </div>
-                <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                  <span className="text-orange-600 text-sm">★</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                    Completion Rate
-                  </p>
-                  <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                    87.5%
-                  </p>
-                  <p className="text-xs text-blue-600 dark:text-blue-400">
-                    7/8 completed
-                  </p>
-                </div>
-                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                  <span className="text-blue-600 text-sm">📊</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Activity Timeline */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Activity Timeline</CardTitle>
-            <CardDescription>
-              Detailed quest completion journey with interactive elements
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Activity items would go here - similar to the enriched user activity component */}
-              <div className="text-center text-muted-foreground py-8">
-                Activity timeline details would be displayed here
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <UserActivityDetail
+        campaignId={selectedCampaign}
+        user={selectedUser}
+        onBack={() => setSelectedUser(null)}
+      />
     );
   }
 
@@ -272,7 +153,8 @@ export function UsersView({
         <CardHeader>
           <CardTitle>User List</CardTitle>
           <CardDescription>
-            {filteredUsers.length} users found. Click on any user to view their detailed activity.
+            {filteredUsers.length} users found. Click on any user to view their
+            detailed activity.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -281,11 +163,19 @@ export function UsersView({
               <thead>
                 <tr className="border-b">
                   <th className="text-left py-3 px-4 font-medium">Username</th>
-                  <th className="text-left py-3 px-4 font-medium">Account ID</th>
-                  <th className="text-left py-3 px-4 font-medium">Total Points</th>
+                  <th className="text-left py-3 px-4 font-medium">
+                    Account ID
+                  </th>
+                  <th className="text-left py-3 px-4 font-medium">
+                    Total Points
+                  </th>
                   <th className="text-left py-3 px-4 font-medium">Quests</th>
-                  <th className="text-left py-3 px-4 font-medium">Completed At</th>
-                  <th className="text-left py-3 px-4 font-medium">Last Activity</th>
+                  <th className="text-left py-3 px-4 font-medium">
+                    Completed At
+                  </th>
+                  <th className="text-left py-3 px-4 font-medium">
+                    Last Activity
+                  </th>
                   <th className="text-left py-3 px-4 font-medium">Status</th>
                 </tr>
               </thead>
@@ -313,7 +203,10 @@ export function UsersView({
                       {formatDate(user.last_activity)}
                     </td>
                     <td className="py-3 px-4">
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                      <Badge
+                        variant="secondary"
+                        className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                      >
                         Active
                       </Badge>
                     </td>
