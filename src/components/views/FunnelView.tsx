@@ -1,127 +1,176 @@
-import React from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card"
-import { FunnelChart } from "../funnel-chart"
-import { api, type FunnelData } from "../../lib/api"
+import React from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
+import { FunnelChart } from "../funnel-chart";
+import { TrendChart } from "../trend-chart";
+import { KPICard } from "../kpi-card";
+import { api, type FunnelData, type HistoricalData } from "../../lib/api";
+import { TrendingUp, Users, Wallet, CheckCircle } from "lucide-react";
+import { format, subDays } from "date-fns";
 
 interface FunnelViewProps {
-  selectedCampaign: string
-  dateRange: { from: Date; to: Date }
-  isLoading: boolean
+  selectedCampaign: string;
+  dateRange: { from: Date; to: Date };
+  isLoading: boolean;
 }
 
-export function FunnelView({ selectedCampaign, dateRange, isLoading }: FunnelViewProps) {
-  const [funnelData, setFunnelData] = React.useState<FunnelData | null>(null)
+// Generate mock historical data for trends
+const generateHistoricalData = () => {
+  const data = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = subDays(new Date(), i);
+    data.push({
+      date: format(date, "yyyy-MM-dd"),
+      startedDexSwap: Math.floor(Math.random() * 30) + 40,
+      connectedCereWallet: Math.floor(Math.random() * 8) + 6,
+      completedTrade: Math.floor(Math.random() * 4) + 3,
+    });
+  }
+  return data;
+};
+
+export function FunnelView({
+  selectedCampaign,
+  dateRange,
+  isLoading,
+}: FunnelViewProps) {
+  const [funnelData, setFunnelData] = React.useState<FunnelData | null>(null);
+  const [historicalData, setHistoricalData] = React.useState<HistoricalData[]>(
+    [],
+  );
 
   React.useEffect(() => {
     const loadData = async () => {
       try {
-        const data = await api.getFunnelData()
-        setFunnelData(data)
+        const response = await api.getFunnelData({
+          campaignId: selectedCampaign,
+          dateFrom: dateRange.from.toISOString(),
+          dateTo: dateRange.to.toISOString(),
+        });
+        // Use mock data for now since API might not be available
+        setFunnelData(response);
+        setHistoricalData(generateHistoricalData());
       } catch (error) {
-        console.error("Failed to load funnel data:", error)
+        console.error("Failed to load funnel data:", error);
       }
-    }
+    };
 
-    loadData()
-  }, [selectedCampaign])
+    loadData();
+  }, [dateRange.from, dateRange.to, selectedCampaign]);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-muted-foreground">Loading funnel data...</div>
       </div>
-    )
+    );
   }
+
+  const dataForDisplay = funnelData;
+
+  // Calculate conversion rates
+  const startedToConnected = dataForDisplay ? (
+    (dataForDisplay.connectedCereWallet / dataForDisplay.startedDexSwap) *
+    100
+  ).toFixed(1) : 0;
+  const startedToCompleted = dataForDisplay ? (
+    (dataForDisplay.completedTrade / dataForDisplay.startedDexSwap) *
+    100
+  ).toFixed(1) : 0;
+  const connectedToCompleted = dataForDisplay ?(
+    (dataForDisplay.completedTrade / dataForDisplay.connectedCereWallet) *
+    100
+  ).toFixed(1) : 0;
+
+  const handleKPIClick = (stage: string) => {
+    console.log("KPI clicked:", stage);
+  };
+
+  const handleFunnelStageClick = (stage: string, count: number) => {
+    console.log("Funnel stage clicked:", stage, count);
+  };
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Campaign Funnel Analysis</CardTitle>
-          <CardDescription>
-            Detailed breakdown of user progression through the campaign funnel
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <FunnelChart data={funnelData || { startedDexSwap: 0, connectedCereWallet: 0, completedTrade: 0 }} />
-        </CardContent>
-      </Card>
+      {/* KPI Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <KPICard
+          title="Started DEX Swap"
+          value={dataForDisplay?.startedDexSwap || 0}
+          icon={Users}
+          trend={12.5}
+          description="Users who initiated swap"
+          onClick={() => handleKPIClick("startedDexSwap")}
+          clickable
+        />
+        <KPICard
+          title="Connected Wallet"
+          value={dataForDisplay?.connectedCereWallet || 0}
+          icon={Wallet}
+          trend={-5.2}
+          description="Users who connected wallet"
+          onClick={() => handleKPIClick("connectedCereWallet")}
+          clickable
+        />
+        <KPICard
+          title="Completed Trade"
+          value={dataForDisplay?.completedTrade || 0}
+          icon={CheckCircle}
+          trend={8.1}
+          description="Users who finished trade"
+          onClick={() => handleKPIClick("completedTrade")}
+          clickable
+        />
+        <KPICard
+          title="Start → Connect"
+          value={`${startedToConnected}%`}
+          icon={TrendingUp}
+          trend={2.3}
+          description="Conversion rate"
+          isPercentage
+        />
+        <KPICard
+          title="Start → Complete"
+          value={`${startedToCompleted}%`}
+          icon={TrendingUp}
+          trend={-1.8}
+          description="Overall conversion"
+          isPercentage
+        />
+      </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      {/* Charts Section */}
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Started DEX Swap</CardTitle>
-            <CardDescription>Initial engagement</CardDescription>
+            <CardTitle>Campaign Funnel</CardTitle>
+            <CardDescription>
+              User progression through funnel stages
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{funnelData?.startedDexSwap || 0}</div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Users who initiated the DEX swap process
-            </p>
+            <FunnelChart
+              data={dataForDisplay}
+              onStageClick={handleFunnelStageClick}
+            />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Connected Cere Wallet</CardTitle>
-            <CardDescription>Wallet connection step</CardDescription>
+            <CardTitle>7-Day Trend</CardTitle>
+            <CardDescription>Historical performance over time</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{funnelData?.connectedCereWallet || 0}</div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Users who successfully connected their Cere wallet
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Completed Trade</CardTitle>
-            <CardDescription>Final conversion</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{funnelData?.completedTrade || 0}</div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Users who completed the entire trade process
-            </p>
+            <TrendChart data={historicalData} />
           </CardContent>
         </Card>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Conversion Rates</CardTitle>
-          <CardDescription>Step-by-step conversion analysis</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Started to Connected</span>
-              <span className="text-sm text-muted-foreground">
-                {funnelData
-                  ? `${((funnelData.connectedCereWallet / funnelData.startedDexSwap) * 100).toFixed(1)}%`
-                  : "0%"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Connected to Completed</span>
-              <span className="text-sm text-muted-foreground">
-                {funnelData
-                  ? `${((funnelData.completedTrade / funnelData.connectedCereWallet) * 100).toFixed(1)}%`
-                  : "0%"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Overall Conversion</span>
-              <span className="text-sm text-muted-foreground">
-                {funnelData
-                  ? `${((funnelData.completedTrade / funnelData.startedDexSwap) * 100).toFixed(1)}%`
-                  : "0%"}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
-  )
-} 
+  );
+}

@@ -406,22 +406,41 @@ export const api = {
   },
 
   async getUsers({
+    organizationId,
     campaignId,
     dateFrom,
     dateTo,
   }: {
     campaignId: string;
+    organizationId: string;
     dateFrom: string;
     dateTo: string;
   }): Promise<User[]> {
     try {
       const response = await fetch(
-        "https://ai-rule.cere.io/rule/data-service/2105/query/campaign_funnel",
+        "https://ai-rule.cere.io/rule/data-service/2105/query/get_leaderboard",
         {
           method: "POST",
-          body: JSON.stringify({}),
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            params: {
+              campaign_id: campaignId,
+              organization_id: organizationId,
+              // date_from: dateFrom,
+              // date_to: dateTo,
+              account_id: "6R44Eo6brL3YMMtFuocjgdCN9REzpHHWCGS5AVh49btFN13J"
+            },
+          }),
         },
       );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.result.data.data.users;
     } catch (e) {}
   },
   // Funnel Data
@@ -441,6 +460,9 @@ export const api = {
         "https://ai-rule.cere.io/rule/data-service/2105/query/campaign_funnel",
         {
           method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
             params: {
               campaign_id: campaignId,
@@ -456,11 +478,10 @@ export const api = {
 
       const data = await response.json();
       logger.debug("Funnel data fetched successfully", data);
-      return data.result.data.data;
+      return data.result.data.data.data;
     } catch (error) {
       logger.error("Error fetching funnel data:", error);
-      // Fallback to mock data
-      return mockFunnelData;
+      return {startedDexSwap: 0, completedTrade: 0, connectedCereWallet: 0, executedAt: new Date().toISOString()};
     }
   },
 
@@ -526,34 +547,6 @@ export const api = {
       logger.error("Error fetching historical data:", error);
       // Return empty array as fallback
       return [];
-    }
-  },
-
-  // Users
-  async getUsers(stage?: string | null): Promise<User[]> {
-    logger.debug("Fetching users data", { stage });
-
-    try {
-      if (env.ENVIRONMENT === "development") {
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        logger.debug("Using mock users data");
-        return mockUsers;
-      }
-
-      const url = stage
-        ? getApiUrl(`users?stage=${stage}`)
-        : getApiUrl("users");
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      logger.debug("Users data fetched successfully", data);
-      return data;
-    } catch (error) {
-      logger.error("Error fetching users data:", error);
-      return mockUsers;
     }
   },
 
