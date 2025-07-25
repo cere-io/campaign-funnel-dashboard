@@ -27,9 +27,7 @@ export default function CommunityIntelligenceDashboard() {
   const [selectedView, setSelectedView] = useState<
     "dashboard" | "users" | "user-detail"
   >("dashboard");
-  const [, setSelectedFunnelStage] = useState<string | null>(
-    null,
-  );
+  const [, setSelectedFunnelStage] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [activeView, setActiveView] = useState("overview");
 
@@ -90,6 +88,7 @@ export default function CommunityIntelligenceDashboard() {
     if (selectedView === "user-detail" && selectedUser) {
       return (
         <UserActivityDetail
+          campaignId={selectedCampaign}
           user={selectedUser}
           onBack={() => setSelectedView("dashboard")}
         />

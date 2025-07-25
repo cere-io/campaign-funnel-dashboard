@@ -1,4 +1,4 @@
-import { env, logger, getApiUrl } from "./env";
+import { logger, getApiUrl } from "./env";
 import apiClient from "../services/apiClient.ts";
 
 // API Types
@@ -335,26 +335,6 @@ export const api = {
     logger.debug(`Fetching historical data for ${days} days`);
 
     try {
-      if (env.ENVIRONMENT === "development") {
-        await new Promise((resolve) => setTimeout(resolve, 200));
-
-        const data: HistoricalData[] = [];
-        for (let i = days - 1; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-
-          data.push({
-            date: date.toISOString().split("T")[0],
-            startedDexSwap: Math.floor(Math.random() * 30) + 40,
-            connectedCereWallet: Math.floor(Math.random() * 8) + 6,
-            completedTrade: Math.floor(Math.random() * 4) + 3,
-          });
-        }
-
-        logger.debug("Using mock historical data");
-        return data;
-      }
-
       const response = await fetch(getApiUrl(`historical?days=${days}`));
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -414,15 +394,6 @@ export const api = {
     logger.debug("Refreshing data");
 
     try {
-      if (env.ENVIRONMENT === "development") {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        logger.debug("Mock data refresh completed");
-        return {
-          success: true,
-          timestamp: new Date().toISOString(),
-        };
-      }
-
       const response = await fetch(getApiUrl("refresh"), { method: "POST" });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

@@ -19,7 +19,6 @@ export function KPICard({
   icon: Icon,
   trend,
   description,
-  isPercentage = false,
   clickable = false,
   onClick,
 }: KPICardProps) {

@@ -1,4 +1,3 @@
-import React from "react"
 import { Sun, Moon } from "lucide-react"
 import { Button } from "../ui/button"
 import { useTheme } from "../theme-provider"
@@ -18,4 +17,4 @@ export function ThemeToggle() {
       <span className="sr-only">Toggle theme</span>
     </Button>
   )
-} 
+}
