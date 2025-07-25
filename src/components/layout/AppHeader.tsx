@@ -11,10 +11,9 @@ import {
 import { Badge } from "../ui/badge";
 import { Calendar } from "../ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { ThemeToggle } from "./ThemeToggle";
-import { useEffect, useState } from "react";
-import {api, type Campaign, type Organization} from "../../lib/api.ts";
-import {useAuth} from "../../contexts/AuthContext.tsx";
+import { ThemeToggle } from "./ThemeToggle.tsx";
+import { useAuth } from "../../contexts/AuthContext.tsx";
+import type { Organization, Campaign } from "../../lib/api.ts";
 
 interface AppHeaderProps {
   selectedOrganization?: string;
@@ -28,6 +27,8 @@ interface AppHeaderProps {
   lastUpdated: Date;
   onSidebarToggle: () => void;
   activeView: string;
+  organizations: Organization[];
+  campaigns: Campaign[];
 }
 
 const navigationItems = [
@@ -48,32 +49,10 @@ export function AppHeader({
   lastUpdated,
   onSidebarToggle,
   activeView,
+  organizations,
+  campaigns,
 }: AppHeaderProps) {
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-
-  const {connect, walletStatus, token} = useAuth()
-
-  console.log({ walletStatus });
-  useEffect(() => {
-    if (!token) return
-    const loadData = async () => {
-      const orgs = await api.getOrganizations(token);
-      setOrganizations(orgs);
-    };
-
-    loadData();
-  }, [token]);
-
-  useEffect(() => {
-    if (!token) return
-    const loadData = async () => {
-      if (!token && !selectedOrganization) return
-      const camps = await api.getCampaigns(selectedOrganization!,token);
-      setCampaigns(camps)
-    }
-    loadData();
-  }, [selectedOrganization, token]);
+  const {connect, walletStatus} = useAuth()
 
   // Check data freshness
   const getDataFreshnessStatus = () => {
@@ -138,7 +117,7 @@ export function AppHeader({
                 </SelectTrigger>
                 <SelectContent>
                   {campaigns.map((campaign) => (
-                  <SelectItem value={campaign.campaignId.toString()}>{`Campaign ${campaign.campaignName}`}</SelectItem>
+                  <SelectItem key={campaign.campaignId} value={campaign.campaignId.toString()}>{`Campaign ${campaign.campaignName}`}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -9,7 +9,9 @@ import { OverviewView } from "./components/views/OverviewView";
 import { FunnelView } from "./components/views/FunnelView";
 import { UsersView } from "./components/views/UsersView";
 import { UserActivityDetail } from "./components/user-activity-detail";
-import { api, type FunnelData, type ICommunity, type User } from "./lib/api.ts";
+import { FullPageLoader } from "./components/ui/loader.tsx";
+import { api, type FunnelData, type ICommunity, type User, type Organization, type Campaign } from "./lib/api.ts";
+import { useAuth } from "./contexts/AuthContext.tsx";
 
 export default function CommunityIntelligenceDashboard() {
   const [selectedOrganization, setSelectedOrganization] =
@@ -19,10 +21,15 @@ export default function CommunityIntelligenceDashboard() {
     from: subDays(new Date(), 7),
     to: new Date(),
   });
-  const [isRefresing, setIsRefreshing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(true);
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
 
   const [selectedView, setSelectedView] = useState<
     "dashboard" | "users" | "user-detail"
@@ -35,7 +42,55 @@ export default function CommunityIntelligenceDashboard() {
   const [communityData, setCommunityData] = React.useState<ICommunity>();
   const [users, setUsers] = useState<User[]>([]);
 
+  const { token } = useAuth();
+
+  useEffect(() => {
+    const loadOrganizations = async () => {
+      if (!token) return;
+
+      setIsLoadingOrganizations(true);
+      try {
+        const orgs = await api.getOrganizations(token);
+        setOrganizations(orgs);
+
+        if (orgs.length > 0 && !selectedOrganization) {
+          setSelectedOrganization(orgs[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to load organizations:", error);
+      } finally {
+        setIsLoadingOrganizations(false);
+      }
+    };
+
+    loadOrganizations();
+  }, [token]);
+
+  useEffect(() => {
+    const loadCampaigns = async () => {
+      if (!token || !selectedOrganization) return;
+
+      setIsLoadingCampaigns(true);
+      try {
+        const camps = await api.getCampaigns(selectedOrganization, token);
+        setCampaigns(camps);
+
+        if (camps.length > 0 && !selectedCampaign) {
+          setSelectedCampaign(camps[0].campaignId.toString());
+        }
+      } catch (error) {
+        console.error("Failed to load campaigns:", error);
+      } finally {
+        setIsLoadingCampaigns(false);
+      }
+    };
+
+    loadCampaigns();
+  }, [selectedOrganization, token]);
+
   React.useEffect(() => {
+    if (!selectedCampaign) return;
+
     const loadData = async () => {
       setIsLoading(true);
       try {
@@ -49,7 +104,6 @@ export default function CommunityIntelligenceDashboard() {
         ]);
         setFunnelData(funnel);
         setCommunityData(community);
-        setIsLoading(false);
       } catch (error) {
         console.error("Failed to load overview data:", error);
       } finally {
@@ -61,6 +115,8 @@ export default function CommunityIntelligenceDashboard() {
   }, [dateRange.from, dateRange.to, selectedCampaign]);
 
   useEffect(() => {
+    if (!selectedCampaign || !selectedOrganization) return;
+
     const loadData = async () => {
       setIsLoading(true);
       try {
@@ -71,7 +127,6 @@ export default function CommunityIntelligenceDashboard() {
           dateTo: dateRange.to.toISOString(),
         });
         setUsers(response);
-        setIsLoading(false);
       } catch (error) {
         console.error("Failed to load users data:", error);
       } finally {
@@ -84,11 +139,43 @@ export default function CommunityIntelligenceDashboard() {
 
   const refreshData = async () => {
     setIsRefreshing(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setLastUpdated(new Date());
-    setIsRefreshing(false);
+    try {
+      const [funnel, community, usersData] = await Promise.all([
+        api.getFunnelData({
+          campaignId: selectedCampaign,
+          dateFrom: dateRange.from.toISOString(),
+          dateTo: dateRange.to.toISOString(),
+        }),
+        api.getCommunityData(),
+        api.getUsers({
+          campaignId: selectedCampaign,
+          organizationId: selectedOrganization,
+          dateFrom: dateRange.from.toISOString(),
+          dateTo: dateRange.to.toISOString(),
+        }),
+      ]);
+
+      setFunnelData(funnel);
+      setCommunityData(community);
+      setUsers(usersData);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error("Failed to refresh data:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
+
+  const isInitialDataLoaded = !isLoadingOrganizations && organizations.length > 0 &&
+                              (!isLoadingCampaigns || campaigns.length > 0);
+
+  if (!isInitialDataLoaded) {
+    return (
+      <FullPageLoader
+        text={isLoadingOrganizations ? "Loading organizations..." : "Loading campaigns..."}
+      />
+    );
+  }
 
   const renderContent = () => {
     // If we're in a specific user detail view, show that
@@ -190,11 +277,13 @@ export default function CommunityIntelligenceDashboard() {
           setSelectedCampaign={setSelectedCampaign}
           dateRange={dateRange}
           setDateRange={setDateRange}
-          isLoading={isLoading || isRefresing}
+          isLoading={isLoading || isRefreshing}
           onRefresh={refreshData}
           lastUpdated={lastUpdated}
           onSidebarToggle={() => setSidebarOpen(true)}
           activeView={activeView}
+          organizations={organizations}
+          campaigns={campaigns}
         />
 
         {/* Main Content */}

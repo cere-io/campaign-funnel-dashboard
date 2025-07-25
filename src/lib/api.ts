@@ -1,4 +1,4 @@
-import { logger, getApiUrl, env } from "./env";
+import { logger, env } from "./env";
 import apiClient from "../services/apiClient.ts";
 
 // API Types
@@ -366,28 +366,6 @@ export const api = {
     } catch (error) {
       logger.error("Error fetching user activity:", error);
       return {};
-    }
-  },
-
-  // Refresh Data
-  async refreshData(): Promise<{ success: boolean; timestamp: string }> {
-    logger.debug("Refreshing data");
-
-    try {
-      const response = await fetch(getApiUrl("refresh"), { method: "POST" });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      logger.debug("Data refresh completed successfully", data);
-      return data;
-    } catch (error) {
-      logger.error("Error refreshing data:", error);
-      return {
-        success: false,
-        timestamp: new Date().toISOString(),
-      };
     }
   },
 };
