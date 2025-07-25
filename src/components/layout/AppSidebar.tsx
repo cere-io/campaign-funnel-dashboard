@@ -23,15 +23,13 @@ const navigationItems = [
 interface AppSidebarProps {
   activeView: string
   onViewChange: (view: string) => void
+  activeUsersCount: number;
   communityData?: ICommunity;
   funnelData?: FunnelData;
   className?: string
 }
 
-export function AppSidebar({ activeView, communityData, funnelData, onViewChange, className = "" }: AppSidebarProps) {
-  const activeUsers = new Set(
-      (communityData?.messages || []).map((msg) => msg.fromUserName),
-  );
+export function AppSidebar({ activeView, activeUsersCount, communityData, funnelData, onViewChange, className = "" }: AppSidebarProps) {
   return (
     <div className={`w-64 bg-background border-r border-border h-full flex flex-col ${className}`}>
       {/* Sidebar Header */}
@@ -71,16 +69,16 @@ export function AppSidebar({ activeView, communityData, funnelData, onViewChange
           </div>
           <div className="px-3 py-2 space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Active Users</span>
-              <span className="font-medium">{activeUsers.size}</span>
+              <span className="text-muted-foreground">Active Campaign Participants</span>
+              <span className="font-medium">{activeUsersCount || 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Messages</span>
+              <span className="text-muted-foreground">Telegram Chat Messages</span>
               <span className="font-medium">{communityData?.messages?.length || 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Completed Trades</span>
-              <span className="font-medium">{funnelData?.completedTrade || 0}</span>
+              <span className="font-medium">{funnelData?.summary?.completedTrade || 0}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Sentiment</span>

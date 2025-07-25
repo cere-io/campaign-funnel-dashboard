@@ -1,13 +1,22 @@
-
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts"
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
+import { env } from "../lib/env.ts";
 
 interface TrendChartProps {
   data: Array<{
-    date: string
-    startedDexSwap: number
-    connectedCereWallet: number
-    completedTrade: number
-  }>
+    date: string;
+    startedDexSwap: number;
+    connectedCereWallet: number;
+    completedTrade: number;
+  }>;
 }
 
 export function TrendChart({ data }: TrendChartProps) {
@@ -22,15 +31,18 @@ export function TrendChart({ data }: TrendChartProps) {
             </p>
           ))}
         </div>
-      )
+      );
     }
-    return null
-  }
+    return null;
+  };
 
   return (
     <div className="h-[250px] sm:h-[300px]">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+        <LineChart
+          data={data}
+          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+        >
           <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
           <XAxis dataKey="date" tick={{ fontSize: 10 }} />
           <YAxis tick={{ fontSize: 12 }} />
@@ -45,15 +57,17 @@ export function TrendChart({ data }: TrendChartProps) {
             activeDot={{ r: 6 }}
             name="Started DEX Swap"
           />
-          <Line
-            type="monotone"
-            dataKey="connectedCereWallet"
-            stroke="#8b5cf6"
-            strokeWidth={2}
-            dot={{ fill: "#8b5cf6", strokeWidth: 2, r: 4 }}
-            activeDot={{ r: 6 }}
-            name="Connected Wallet"
-          />
+          {!env.HIDE_CONNECT_WALLET_METRICS && (
+            <Line
+              type="monotone"
+              dataKey="connectedCereWallet"
+              stroke="#8b5cf6"
+              strokeWidth={2}
+              dot={{ fill: "#8b5cf6", strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6 }}
+              name="Connected Wallet"
+            />
+          )}
           <Line
             type="monotone"
             dataKey="completedTrade"
@@ -66,5 +80,5 @@ export function TrendChart({ data }: TrendChartProps) {
         </LineChart>
       </ResponsiveContainer>
     </div>
-  )
+  );
 }

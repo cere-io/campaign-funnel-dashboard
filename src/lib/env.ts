@@ -10,6 +10,9 @@ export interface EnvironmentConfig {
   ENVIRONMENT: 'dev' | 'stage' | 'prod'
   DEBUG: boolean
   LOG_LEVEL: 'debug' | 'info' | 'warn' | 'error'
+  HIDE_CONNECT_WALLET_METRICS: boolean
+  RULE_SERVICE_API_URL: string
+  DATA_SERVICE_ID: string
 }
 
 /**
@@ -33,10 +36,13 @@ function getBooleanEnvVar(key: string, fallback: boolean = false): boolean {
 export const env: EnvironmentConfig = {
   APP_NAME: getEnvVar('VITE_APP_NAME', 'Campaign Funnel Dashboard'),
   APP_VERSION: getEnvVar('VITE_APP_VERSION', '1.0.0'),
-  ROB_API_URL: getEnvVar('VITE_ROB_API_URL', 'http://localhost:3000/api'),
+  ROB_API_URL: getEnvVar('VITE_ROB_API_URL', ''),
   ENVIRONMENT: (getEnvVar('VITE_ENVIRONMENT', 'development') as EnvironmentConfig['ENVIRONMENT']) || 'development',
   DEBUG: getBooleanEnvVar('VITE_DEBUG', true),
   LOG_LEVEL: (getEnvVar('VITE_LOG_LEVEL', 'debug') as EnvironmentConfig['LOG_LEVEL']) || 'debug',
+  HIDE_CONNECT_WALLET_METRICS: (getBooleanEnvVar('VITE_HIDE_CONNECT_WALLET_METRICS', false)),
+  RULE_SERVICE_API_URL: getEnvVar('VITE_RULE_SERVICE_API_URL', ''),
+  DATA_SERVICE_ID: getEnvVar('VITE_DATA_SERVICE_ID', '2105')
 }
 
 /**

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -9,52 +9,25 @@ import {
 import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { Search, Users, Trophy } from "lucide-react";
-import { api, type User } from "../../lib/api";
+import { type User } from "../../lib/api";
 import { UserActivityDetail } from "../user-activity-detail";
-import {Loader} from "../ui/loader.tsx";
+import { Loader } from "../ui/loader.tsx";
 
 interface UsersViewProps {
   selectedCampaign: string;
-  selectedOrganization: string;
-  dateRange: { from: Date; to: Date };
+  users: User[];
   isLoading: boolean;
 }
 
 export function UsersView({
   selectedCampaign,
-  selectedOrganization,
-  dateRange,
-  isLoading: isRefreshing,
+  users,
+  isLoading,
 }: UsersViewProps) {
-  const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
-  console.log({ selectedUser });
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        const response = await api.getUsers({
-          campaignId: selectedCampaign,
-          organizationId: selectedOrganization,
-          dateFrom: dateRange.from.toISOString(),
-          dateTo: dateRange.to.toISOString(),
-        });
-        setUsers(response);
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Failed to load users data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, [dateRange.from, dateRange.to, selectedCampaign, selectedOrganization]);
-
-  if (isLoading || isRefreshing) {
+  if (isLoading) {
     return <Loader />;
   }
 

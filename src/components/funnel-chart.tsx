@@ -8,6 +8,7 @@ import {
   Tooltip,
   Cell,
 } from "recharts";
+import { env } from "../lib/env.ts";
 
 interface FunnelChartProps {
   data?: {
@@ -26,17 +27,24 @@ export function FunnelChart({ data, onStageClick }: FunnelChartProps) {
       percentage: 100,
       color: "#3b82f6",
     },
-    {
-      stage: "Connected Wallet",
-      count: data ? data?.connectedCereWallet : 0,
-      percentage: data ?
-        (data?.connectedCereWallet / data?.startedDexSwap) * 100 : 0,
-      color: "#8b5cf6",
-    },
+    ...(!env.HIDE_CONNECT_WALLET_METRICS
+        ? [
+          {
+            stage: "Connected Wallet",
+            count: data ? data?.connectedCereWallet : 0,
+            percentage: data
+                ? (data?.connectedCereWallet / data?.startedDexSwap) * 100
+                : 0,
+            color: "#8b5cf6",
+          },
+        ]
+        : []),
     {
       stage: "Completed Trade",
       count: data ? data?.completedTrade : 0,
-      percentage: data ? (data?.completedTrade || 0 / data?.startedDexSwap || 0) * 100 : 0,
+      percentage: data
+          ? (data?.completedTrade / data?.startedDexSwap) * 100
+          : 0,
       color: "#10b981",
     },
   ];

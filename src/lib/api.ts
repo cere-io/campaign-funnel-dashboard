@@ -1,12 +1,19 @@
-import { logger, getApiUrl } from "./env";
+import { logger, getApiUrl, env } from "./env";
 import apiClient from "../services/apiClient.ts";
 
 // API Types
 export interface FunnelData {
-  startedDexSwap: number;
-  connectedCereWallet: number;
-  completedTrade: number;
-  executedAt: string;
+  summary: {
+    startedDexSwap: number;
+    connectedCereWallet: number;
+    completedTrade: number;
+    executedAt: string;
+  };
+  trends: {
+    completedTrade: Array<{ date: string; value: number }>;
+    connectedCereWallet: Array<{ date: string; value: number }>;
+    startedDexSwap: Array<{ date: string; value: number }>;
+  };
 }
 
 export interface Organization {
@@ -64,20 +71,6 @@ export interface ICommunity {
     sentiment: string;
     topic: string;
   }>;
-}
-
-export interface CommunityData {
-  result: {
-    code: string;
-    data: ICommunity;
-  };
-}
-
-export interface HistoricalData {
-  date: string;
-  startedDexSwap: number;
-  connectedCereWallet: number;
-  completedTrade: number;
 }
 
 export interface User {
@@ -168,7 +161,7 @@ export const api = {
   async getOrganizations(token?: string): Promise<Organization[]> {
     try {
       const response = await apiClient.get(
-        "/data-services/2105/organizations",
+        `/data-services/${env.DATA_SERVICE_ID}/organizations`,
         {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         },
@@ -212,7 +205,7 @@ export const api = {
   }): Promise<User[]> {
     try {
       const response = await fetch(
-        "https://ai-rule.cere.io/rule/data-service/2105/query/get_leaderboard",
+        `${env.RULE_SERVICE_API_URL}/data-service/${env.DATA_SERVICE_ID}/query/get_leaderboard_for_funnel`,
         {
           method: "POST",
           headers: {
@@ -254,7 +247,7 @@ export const api = {
 
     try {
       const response = await fetch(
-        "https://ai-rule.cere.io/rule/data-service/2105/query/campaign_funnel",
+        `${env.RULE_SERVICE_API_URL}/data-service/${env.DATA_SERVICE_ID}/query/campaign_funnel`,
         {
           method: "POST",
           headers: {
@@ -279,10 +272,17 @@ export const api = {
     } catch (error) {
       logger.error("Error fetching funnel data:", error);
       return {
-        startedDexSwap: 0,
-        completedTrade: 0,
-        connectedCereWallet: 0,
-        executedAt: new Date().toISOString(),
+        summary: {
+          startedDexSwap: 0,
+          completedTrade: 0,
+          connectedCereWallet: 0,
+          executedAt: new Date().toISOString(),
+        },
+        trends: {
+          completedTrade: [],
+          connectedCereWallet: [],
+          startedDexSwap: [],
+        },
       };
     }
   },
@@ -293,7 +293,7 @@ export const api = {
 
     try {
       const response = await fetch(
-        "https://ai-rule.stage.cere.io/rule/data-service/2599/query/nlp2_last_context",
+        "https://ai-rule.stage.cere.io/rule/data-service/2599/query/nlp2_last_context", // @TODO replace
         {
           method: "POST",
           headers: {
@@ -330,26 +330,6 @@ export const api = {
     }
   },
 
-  // Historical Data
-  async getHistoricalData(days: number = 7): Promise<HistoricalData[]> {
-    logger.debug(`Fetching historical data for ${days} days`);
-
-    try {
-      const response = await fetch(getApiUrl(`historical?days=${days}`));
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      logger.debug("Historical data fetched successfully", data);
-      return data;
-    } catch (error) {
-      logger.error("Error fetching historical data:", error);
-      // Return empty array as fallback
-      return [];
-    }
-  },
-
   // User Activity
   async getUserActivity({
     userId,
@@ -362,7 +342,7 @@ export const api = {
 
     try {
       const response = await fetch(
-        `https://ai-rule.cere.io/rule/data-service/2105/query/get_user_activities`,
+        `${env.RULE_SERVICE_API_URL}/data-service/${env.DATA_SERVICE_ID}/query/get_user_activities`,
         {
           method: "POST",
           headers: {

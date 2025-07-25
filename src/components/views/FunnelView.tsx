@@ -8,11 +8,10 @@ import {
 import { FunnelChart } from "../funnel-chart";
 import { TrendChart } from "../trend-chart";
 import { KPICard } from "../kpi-card";
-import { type FunnelData, type HistoricalData } from "../../lib/api";
+import { type FunnelData } from "../../lib/api";
 import { TrendingUp, Users, Wallet, CheckCircle } from "lucide-react";
-import { format, subDays } from "date-fns";
 import { Loader } from "../ui/loader.tsx";
-import {useState} from "react";
+import { env } from "../../lib/env.ts";
 
 interface FunnelViewProps {
   selectedCampaign: string;
@@ -21,29 +20,40 @@ interface FunnelViewProps {
   funnelData?: FunnelData;
 }
 
-// Generate mock historical data for trends
-const generateHistoricalData = () => {
-  const data = [];
-  for (let i = 6; i >= 0; i--) {
-    const date = subDays(new Date(), i);
-    data.push({
-      date: format(date, "yyyy-MM-dd"),
-      startedDexSwap: Math.floor(Math.random() * 30) + 40,
-      connectedCereWallet: Math.floor(Math.random() * 8) + 6,
-      completedTrade: Math.floor(Math.random() * 4) + 3,
-    });
-  }
-  return data;
-};
+const generateHistoricalData = (trends?: FunnelData["trends"]) => {
+  if (!trends) return [];
+  const result: {
+    date: string;
+    startedDexSwap: number;
+    connectedCereWallet: number;
+    completedTrade: number;
+  }[] = [];
 
-export function FunnelView({
-  funnelData,
-  isLoading,
-}: FunnelViewProps) {
-  const [historicalData,] = useState<HistoricalData[]>(
-    generateHistoricalData(),
+  const allDatesSet = new Set<string>();
+  Object.values(trends).forEach((arr) =>
+    arr.forEach((entry) => allDatesSet.add(entry.date)),
   );
 
+  const allDates = Array.from(allDatesSet).sort(); // Сортируем по дате
+
+  for (const date of allDates) {
+    const entry = {
+      date,
+      startedDexSwap:
+        trends.startedDexSwap.find((d) => d.date === date)?.value ?? 0,
+      connectedCereWallet:
+        trends.connectedCereWallet.find((d) => d.date === date)?.value ?? 0,
+      completedTrade:
+        trends.completedTrade.find((d) => d.date === date)?.value ?? 0,
+    };
+
+    result.push(entry);
+  }
+
+  return result;
+};
+
+export function FunnelView({ funnelData, isLoading }: FunnelViewProps) {
   if (isLoading) {
     return <Loader />;
   }
@@ -53,13 +63,15 @@ export function FunnelView({
   // Calculate conversion rates
   const startedToConnected = dataForDisplay
     ? (
-        (dataForDisplay.connectedCereWallet / dataForDisplay.startedDexSwap) *
+        (dataForDisplay?.summary.connectedCereWallet /
+          dataForDisplay?.summary?.startedDexSwap) *
         100
       ).toFixed(1)
     : 0;
   const startedToCompleted = dataForDisplay
     ? (
-        (dataForDisplay.completedTrade / dataForDisplay.startedDexSwap) *
+        (dataForDisplay?.summary?.completedTrade /
+          dataForDisplay?.summary?.startedDexSwap) *
         100
       ).toFixed(1)
     : 0;
@@ -75,28 +87,34 @@ export function FunnelView({
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div
+          className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-${
+              env.HIDE_CONNECT_WALLET_METRICS ? 4 : 5
+          }`}
+      >
         <KPICard
           title="Started DEX Swap"
-          value={dataForDisplay?.startedDexSwap || 0}
+          value={dataForDisplay?.summary?.startedDexSwap || 0}
           icon={Users}
           trend={12.5}
           description="Users who initiated swap"
           onClick={() => handleKPIClick("startedDexSwap")}
           clickable
         />
-        <KPICard
-          title="Connected Wallet"
-          value={dataForDisplay?.connectedCereWallet || 0}
-          icon={Wallet}
-          trend={-5.2}
-          description="Users who connected wallet"
-          onClick={() => handleKPIClick("connectedCereWallet")}
-          clickable
-        />
+        {!env.HIDE_CONNECT_WALLET_METRICS && (
+          <KPICard
+            title="Connected Wallet"
+            value={dataForDisplay?.summary?.connectedCereWallet || 0}
+            icon={Wallet}
+            trend={-5.2}
+            description="Users who connected wallet"
+            onClick={() => handleKPIClick("connectedCereWallet")}
+            clickable
+          />
+        )}
         <KPICard
           title="Completed Trade"
-          value={dataForDisplay?.completedTrade || 0}
+          value={dataForDisplay?.summary?.completedTrade || 0}
           icon={CheckCircle}
           trend={8.1}
           description="Users who finished trade"
@@ -132,7 +150,7 @@ export function FunnelView({
           </CardHeader>
           <CardContent>
             <FunnelChart
-              data={dataForDisplay}
+              data={dataForDisplay?.summary}
               onStageClick={handleFunnelStageClick}
             />
           </CardContent>
@@ -144,7 +162,7 @@ export function FunnelView({
             <CardDescription>Historical performance over time</CardDescription>
           </CardHeader>
           <CardContent>
-            <TrendChart data={historicalData} />
+            <TrendChart data={generateHistoricalData(dataForDisplay?.trends)} />
           </CardContent>
         </Card>
       </div>

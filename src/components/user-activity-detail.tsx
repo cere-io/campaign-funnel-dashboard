@@ -20,7 +20,6 @@ import {
   MessageSquare,
   BarChart3,
   TrendingUp,
-  ExternalLink,
 } from "lucide-react";
 import {api, type QuestActivitiesMap, type CustomPayload} from "../lib/api";
 import { Loader } from "./ui/loader";
@@ -100,7 +99,7 @@ export function UserActivityDetail({
       if (activity.quest_type === "custom" && "subtype" in activity.payload) {
         const payload = activity.payload as CustomPayload;
         if (payload.subtype === "dex") {
-          total += 2450;
+          total += 0;
         }
       }
     }
@@ -208,11 +207,11 @@ export function UserActivityDetail({
       const payload = activity.payload as CustomPayload;
       if (payload.subtype === "dex") {
         return {
-          from: "1.25 ETH",
-          to: "2450.75 PAPPLE",
-          value: "$2,450",
-          fromAmount: "1.25",
-          toAmount: "2450.75",
+          // from: "1.25 ETH",
+          // to: "2450.75 PAPPLE",
+          // value: "$2,450",
+          // fromAmount: "1.25",
+          // toAmount: "2450.75",
           tokenFrom: "ETH",
           tokenTo: "PAPPLE",
         };
@@ -426,8 +425,9 @@ export function UserActivityDetail({
                                   )}
                                   {swapDetails && (
                                     <div>
-                                      <p>From: {swapDetails.fromAmount} {swapDetails.tokenFrom} to {swapDetails.toAmount} {swapDetails.tokenTo}</p>
-                                      <p className="text-green-600 font-medium">Total: {swapDetails.value}</p>
+                                      <p>{`From: ${swapDetails.tokenFrom} to ${swapDetails.tokenTo}`}</p>
+                                      {/*<p>From: {swapDetails.fromAmount} {swapDetails.tokenFrom} to {swapDetails.toAmount} {swapDetails.tokenTo}</p>*/}
+                                      {/*<p className="text-green-600 font-medium">Total: {swapDetails.value}</p>*/}
                                     </div>
                                   )}
                                 </div>
@@ -467,15 +467,15 @@ export function UserActivityDetail({
                             )}
 
                             <p className="text-xs text-muted-foreground mt-1">
-                              ID: {payload.questId || activity.account_id}
+                              ID: {payload?.questId || payload?.video_id?.split('/')[4] || payload?.answers?.[0]?.quiz_id || activity.account_id}
                             </p>
                           </div>
 
-                          {/* View Details Link */}
-                          <Button variant="ghost" size="sm" className="flex items-center gap-1 text-blue-600 hover:text-blue-700">
-                            <ExternalLink className="h-3 w-3" />
-                            View Details
-                          </Button>
+                          {/*/!* View Details Link *!/*/}
+                          {/*<Button variant="ghost" size="sm" className="flex items-center gap-1 text-blue-600 hover:text-blue-700">*/}
+                          {/*  <ExternalLink className="h-3 w-3" />*/}
+                          {/*  View Details*/}
+                          {/*</Button>*/}
                         </div>
                     );
                   })

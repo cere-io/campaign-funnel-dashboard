@@ -26,10 +26,12 @@ interface OverviewViewProps {
   isLoading: boolean;
   communityData?: ICommunity;
   funnelData?: FunnelData;
+  activeUsersCount: number;
 }
 
 export function OverviewView({
   communityData,
+  activeUsersCount,
   funnelData,
   isLoading,
 }: OverviewViewProps) {
@@ -39,16 +41,6 @@ export function OverviewView({
 
   // Calculate community metrics
   const communityDataForDisplay = communityData;
-  const sentimentScore = (
-    ((communityDataForDisplay?.sentimentAnalysis?.positive || 0) /
-      ((communityDataForDisplay?.sentimentAnalysis?.positive || 0) +
-        (communityDataForDisplay?.sentimentAnalysis?.negative || 0))) *
-    100
-  ).toFixed(1);
-
-  const activeUsers = new Set(
-    (communityDataForDisplay?.messages || []).map((msg) => msg.fromUserName),
-  );
 
   const handleFunnelStageClick = (stage: string, count: number) => {
     // This would be handled by parent component
@@ -71,7 +63,7 @@ export function OverviewView({
           </CardHeader>
           <CardContent>
             <div className="text-2xl md:text-3xl font-bold text-blue-900 dark:text-blue-100">
-              {funnelData?.completedTrade}
+              {funnelData?.summary?.completedTrade || 0}
             </div>
             <div className="flex items-center mt-2">
               <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
@@ -87,7 +79,7 @@ export function OverviewView({
           <div className="absolute top-0 right-0 w-20 h-20 bg-green-500/10 rounded-full -mr-10 -mt-10" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
-              Active Users
+              Active Campaign Participants
             </CardTitle>
             <div className="p-2 bg-green-500/20 rounded-lg">
               <Users className="h-4 w-4 text-green-600" />
@@ -95,7 +87,7 @@ export function OverviewView({
           </CardHeader>
           <CardContent>
             <div className="text-2xl md:text-3xl font-bold text-green-900 dark:text-green-100">
-              {activeUsers.size}
+              {activeUsersCount || 0}
             </div>
             <div className="flex items-center mt-2">
               <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
@@ -119,7 +111,9 @@ export function OverviewView({
           </CardHeader>
           <CardContent>
             <div className="text-2xl md:text-3xl font-bold text-purple-900 dark:text-purple-100">
-              {sentimentScore}%
+              {(communityDataForDisplay?.sentimentAnalysis?.averageSentiment ||
+                0) * 100}
+              %
             </div>
             <div className="flex items-center mt-2">
               <TrendingUp className="h-3 w-3 text-green-500 mr-1" />
@@ -135,7 +129,7 @@ export function OverviewView({
           <div className="absolute top-0 right-0 w-20 h-20 bg-orange-500/10 rounded-full -mr-10 -mt-10" />
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-orange-700 dark:text-orange-300">
-              Messages
+              Telegram Chat Messages
             </CardTitle>
             <div className="p-2 bg-orange-500/20 rounded-lg">
               <MessageSquare className="h-4 w-4 text-orange-600" />
@@ -173,7 +167,7 @@ export function OverviewView({
           </CardHeader>
           <CardContent className="pt-0">
             <FunnelChart
-              data={funnelData}
+              data={funnelData?.summary}
               onStageClick={handleFunnelStageClick}
             />
           </CardContent>
@@ -207,13 +201,15 @@ export function OverviewView({
                       fill="none"
                       stroke="#10b981"
                       strokeWidth="2"
-                      strokeDasharray={`${(communityDataForDisplay?.sentimentAnalysis?.averageSentiment  || 0) * 100}, 100`}
+                      strokeDasharray={`${(communityDataForDisplay?.sentimentAnalysis?.averageSentiment || 0) * 100}, 100`}
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-center">
                       <div className="text-xl sm:text-2xl font-bold text-green-600">
-                        {(communityDataForDisplay?.sentimentAnalysis?.averageSentiment  || 0) * 100}%
+                        {(communityDataForDisplay?.sentimentAnalysis
+                          ?.averageSentiment || 0) * 100}
+                        %
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Positive
@@ -303,11 +299,11 @@ export function OverviewView({
                         {message.content}
                       </p>
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
-                        <span className="text-xs text-muted-foreground">
-                          Confidence:{" "}
-                          {/*{(activity.topic_confidence * 100).toFixed(0)}%*/}
-                          TODO
-                        </span>
+                        {/*<span className="text-xs text-muted-foreground">*/}
+                        {/*  Confidence:{" "}*/}
+                        {/*  /!*{(activity.topic_confidence * 100).toFixed(0)}%*!/*/}
+                        {/*  TODO*/}
+                        {/*</span>*/}
                         {(communityDataForDisplay.topics.find(
                           (topic) => topic.name === message.topic,
                         )?.is_new ||
@@ -362,8 +358,7 @@ export function OverviewView({
                         </Badge>
                       )}
                       <Badge variant="outline" className="text-xs">
-                        {/*{topic.message_count} msgs*/}
-                        topic.message_count TODO
+                        {/*/!*{topic.message_count} msgs*!/ TODO*/}
                       </Badge>
                     </div>
                   </div>

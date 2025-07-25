@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { subDays } from "date-fns";
 
 import { Sheet, SheetContent } from "./components/ui/sheet";
@@ -9,7 +9,7 @@ import { OverviewView } from "./components/views/OverviewView";
 import { FunnelView } from "./components/views/FunnelView";
 import { UsersView } from "./components/views/UsersView";
 import { UserActivityDetail } from "./components/user-activity-detail";
-import { api, type FunnelData, type ICommunity } from "./lib/api.ts";
+import { api, type FunnelData, type ICommunity, type User } from "./lib/api.ts";
 
 export default function CommunityIntelligenceDashboard() {
   const [selectedOrganization, setSelectedOrganization] =
@@ -33,6 +33,7 @@ export default function CommunityIntelligenceDashboard() {
 
   const [funnelData, setFunnelData] = React.useState<FunnelData>();
   const [communityData, setCommunityData] = React.useState<ICommunity>();
+  const [users, setUsers] = useState<User[]>([]);
 
   React.useEffect(() => {
     const loadData = async () => {
@@ -59,6 +60,28 @@ export default function CommunityIntelligenceDashboard() {
     loadData();
   }, [dateRange.from, dateRange.to, selectedCampaign]);
 
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const response = await api.getUsers({
+          campaignId: selectedCampaign,
+          organizationId: selectedOrganization,
+          dateFrom: dateRange.from.toISOString(),
+          dateTo: dateRange.to.toISOString(),
+        });
+        setUsers(response);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Failed to load users data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [dateRange.from, dateRange.to, selectedCampaign, selectedOrganization]);
+
   const refreshData = async () => {
     setIsRefreshing(true);
     // Simulate API call
@@ -66,22 +89,6 @@ export default function CommunityIntelligenceDashboard() {
     setLastUpdated(new Date());
     setIsRefreshing(false);
   };
-
-  // const handleKPIClick = (stage: string) => {
-  //   setSelectedFunnelStage(stage);
-  //   setSelectedView("users");
-  // };
-
-  // const handleFunnelStageClick = (stage: string, count: number) => {
-  //   // Map funnel stage names to the same format used by KPI cards
-  //   let mappedStage = stage;
-  //   if (stage === "Started DEX Swap") mappedStage = "startedDexSwap";
-  //   if (stage === "Connected Wallet") mappedStage = "connectedCereWallet";
-  //   if (stage === "Completed Trade") mappedStage = "completedTrade";
-  //
-  //   setSelectedFunnelStage(mappedStage);
-  //   setSelectedView("users");
-  // };
 
   const renderContent = () => {
     // If we're in a specific user detail view, show that
@@ -94,25 +101,13 @@ export default function CommunityIntelligenceDashboard() {
         />
       );
     }
-    // // If we're in users list view from funnel, show that
-    // if (selectedView === "users") {
-    //   return (
-    //     <UsersList
-    //       stage={selectedFunnelStage}
-    //       onBack={() => setSelectedView("dashboard")}
-    //       onUserSelect={(user) => {
-    //         setSelectedUser(user);
-    //         setSelectedView("user-detail");
-    //       }}
-    //     />
-    //   );
-    // }
 
     // Otherwise, show content based on activeView (sidebar navigation)
     switch (activeView) {
       case "overview":
         return (
           <OverviewView
+            activeUsersCount={users.length || 0}
             funnelData={funnelData}
             communityData={communityData}
             selectedCampaign={selectedCampaign}
@@ -132,15 +127,15 @@ export default function CommunityIntelligenceDashboard() {
       case "user-activity":
         return (
           <UsersView
-            selectedOrganization={selectedOrganization}
+            users={users}
             selectedCampaign={selectedCampaign}
-            dateRange={dateRange}
             isLoading={isLoading}
           />
         );
       default:
         return (
           <OverviewView
+            activeUsersCount={users.length || 0}
             communityData={communityData}
             funnelData={funnelData}
             selectedCampaign={selectedCampaign}
@@ -164,6 +159,7 @@ export default function CommunityIntelligenceDashboard() {
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <AppSidebar
+          activeUsersCount={users.length || 0}
           communityData={communityData}
           funnelData={funnelData}
           activeView={activeView}
@@ -175,6 +171,7 @@ export default function CommunityIntelligenceDashboard() {
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64">
           <AppSidebar
+            activeUsersCount={users.length || 0}
             communityData={communityData}
             funnelData={funnelData}
             activeView={activeView}
