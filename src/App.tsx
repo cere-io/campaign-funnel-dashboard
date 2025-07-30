@@ -29,7 +29,6 @@ export default function CommunityIntelligenceDashboard() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(true);
-  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
 
   const [selectedView, setSelectedView] = useState<
     "dashboard" | "users" | "user-detail"
@@ -42,11 +41,38 @@ export default function CommunityIntelligenceDashboard() {
   const [communityData, setCommunityData] = React.useState<ICommunity>();
   const [users, setUsers] = useState<User[]>([]);
 
-  const { token } = useAuth();
+  const { token, isAuthenticated, walletStatus, isAuthenticating } = useAuth();
+
+  // Clear data when wallet is disconnected
+  useEffect(() => {
+    if (!isAuthenticated) {
+      console.log('Wallet disconnected, clearing data...');
+      setOrganizations([]);
+      setCampaigns([]);
+      setFunnelData(undefined);
+      setCommunityData(undefined);
+      setUsers([]);
+      setSelectedOrganization("2115"); // Reset to default
+      setSelectedCampaign("58"); // Reset to default
+    }
+  }, [isAuthenticated]);
+
+  // Log authentication status changes for debugging
+  useEffect(() => {
+    console.log('Auth status changed:', { 
+      isAuthenticated, 
+      walletStatus, 
+      isAuthenticating, 
+      hasToken: !!token 
+    });
+  }, [isAuthenticated, walletStatus, isAuthenticating, token]);
 
   useEffect(() => {
     const loadOrganizations = async () => {
-      if (!token) return;
+      if (!token) {
+        setIsLoadingOrganizations(false);
+        return;
+      }
 
       setIsLoadingOrganizations(true);
       try {
@@ -70,7 +96,6 @@ export default function CommunityIntelligenceDashboard() {
     const loadCampaigns = async () => {
       if (!token || !selectedOrganization) return;
 
-      setIsLoadingCampaigns(true);
       try {
         const camps = await api.getCampaigns(selectedOrganization, token);
         setCampaigns(camps);
@@ -80,8 +105,6 @@ export default function CommunityIntelligenceDashboard() {
         }
       } catch (error) {
         console.error("Failed to load campaigns:", error);
-      } finally {
-        setIsLoadingCampaigns(false);
       }
     };
 
@@ -166,18 +189,39 @@ export default function CommunityIntelligenceDashboard() {
     }
   };
 
-  const isInitialDataLoaded = !isLoadingOrganizations && organizations.length > 0 &&
-                              (!isLoadingCampaigns || campaigns.length > 0);
+  // Show loader only if we're still authenticating or loading data when authenticated
+  const shouldShowLoader = isAuthenticating || 
+    (isAuthenticated && token && isLoadingOrganizations);
 
-  if (!isInitialDataLoaded) {
+  if (shouldShowLoader) {
     return (
       <FullPageLoader
-        text={isLoadingOrganizations ? "Loading organizations..." : "Loading campaigns..."}
+        text={isAuthenticating ? "Initializing..." : "Loading organizations..."}
       />
     );
   }
 
   const renderContent = () => {
+    // If not authenticated or no token, show empty state with message
+    if (!isAuthenticated || !token) {
+      const isWalletDisconnected = walletStatus === 'disconnected';
+      return (
+        <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+          <div className="text-center space-y-4">
+            <h2 className="text-2xl font-semibold text-muted-foreground">
+              {isWalletDisconnected ? 'Wallet Disconnected' : 'Connect Wallet to Continue'}
+            </h2>
+            <p className="text-muted-foreground">
+              {isWalletDisconnected 
+                ? 'Your wallet has been disconnected. Please reconnect to access the dashboard data.'
+                : 'Please connect your wallet to access the dashboard data'
+              }
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     // If we're in a specific user detail view, show that
     if (selectedView === "user-detail" && selectedUser) {
       return (
@@ -251,6 +295,7 @@ export default function CommunityIntelligenceDashboard() {
           funnelData={funnelData}
           activeView={activeView}
           onViewChange={handleViewChange}
+          isAuthenticated={isAuthenticated}
         />
       </div>
 
@@ -263,6 +308,7 @@ export default function CommunityIntelligenceDashboard() {
             funnelData={funnelData}
             activeView={activeView}
             onViewChange={handleViewChange}
+            isAuthenticated={isAuthenticated}
           />
         </SheetContent>
       </Sheet>
@@ -284,6 +330,7 @@ export default function CommunityIntelligenceDashboard() {
           activeView={activeView}
           organizations={organizations}
           campaigns={campaigns}
+          isAuthenticated={isAuthenticated}
         />
 
         {/* Main Content */}

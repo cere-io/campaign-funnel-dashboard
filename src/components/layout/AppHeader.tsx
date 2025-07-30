@@ -29,6 +29,7 @@ interface AppHeaderProps {
   activeView: string;
   organizations: Organization[];
   campaigns: Campaign[];
+  isAuthenticated: boolean;
 }
 
 const navigationItems = [
@@ -51,8 +52,9 @@ export function AppHeader({
   activeView,
   organizations,
   campaigns,
+  isAuthenticated,
 }: AppHeaderProps) {
-  const {connect, walletStatus} = useAuth()
+  const { connect, walletStatus } = useAuth();
 
   // Check data freshness
   const getDataFreshnessStatus = () => {
@@ -92,86 +94,110 @@ export function AppHeader({
 
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* Mobile-optimized controls */}
-            <div className="hidden sm:block">
-              <Select
-                value={selectedOrganization}
-                onValueChange={setSelectedOrganization}
-              >
-                <SelectTrigger className="w-[170px]">
-                  <SelectValue placeholder="Organization" />
-                </SelectTrigger>
-                <SelectContent>
-                  {organizations.map((organization) => (
-                      <SelectItem key={organization.id} value={organization.id}>{`${organization.name} #${organization.id}`}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="hidden sm:block">
-              <Select
-                value={selectedCampaign}
-                onValueChange={setSelectedCampaign}
-              >
-                <SelectTrigger className="w-[170px]">
-                  <SelectValue placeholder="Campaign" />
-                </SelectTrigger>
-                <SelectContent>
-                  {campaigns.map((campaign) => (
-                  <SelectItem key={campaign.campaignId} value={campaign.campaignId.toString()}>{`Campaign ${campaign.campaignName}`}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {isAuthenticated && (
+              <div className="hidden sm:block">
+                <Select
+                  value={isAuthenticated ? selectedOrganization : ""}
+                  onValueChange={setSelectedOrganization}
+                >
+                  <SelectTrigger className="w-[170px]">
+                    <SelectValue placeholder="Organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations.map((organization) => (
+                      <SelectItem
+                        key={organization.id}
+                        value={organization.id}
+                      >{`${organization.name} #${organization.id}`}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {isAuthenticated && (
+              <div className="hidden sm:block">
+                <Select
+                  value={isAuthenticated ? selectedCampaign : ""}
+                  onValueChange={setSelectedCampaign}
+                >
+                  <SelectTrigger className="w-[170px]">
+                    <SelectValue placeholder="Campaign" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {campaigns.map((campaign) => (
+                      <SelectItem
+                        key={campaign.campaignId}
+                        value={campaign.campaignId.toString()}
+                      >{`Campaign ${campaign.campaignName}`}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
-            <div className="hidden md:block">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-[200px] justify-start text-left font-normal bg-transparent"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "MMM dd")} -{" "}
-                          {format(dateRange.to, "MMM dd")}
-                        </>
+            {isAuthenticated && (
+              <div className="hidden md:block">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-[200px] justify-start text-left font-normal bg-transparent"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {isAuthenticated && dateRange?.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, "MMM dd")} -{" "}
+                            {format(dateRange.to, "MMM dd")}
+                          </>
+                        ) : (
+                          format(dateRange.from, "MMM dd, y")
+                        )
                       ) : (
-                        format(dateRange.from, "MMM dd, y")
-                      )
-                    ) : (
-                      <span>Date range</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateRange?.from}
-                    selected={dateRange}
-                    onSelect={(range) => {
-                      if (range?.from && range?.to) {
-                        setDateRange({ from: range.from, to: range.to });
-                      }
-                    }}
-                    numberOfMonths={2}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+                        <span>Date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="end">
+                    <Calendar
+                      initialFocus
+                      mode="range"
+                      defaultMonth={dateRange?.from}
+                      selected={dateRange}
+                      onSelect={(range) => {
+                        if (range?.from && range?.to) {
+                          setDateRange({ from: range.from, to: range.to });
+                        }
+                      }}
+                      numberOfMonths={2}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
 
             <ThemeToggle />
-            <Button onClick={onRefresh} disabled={isLoading} size="sm">
+            <Button
+              onClick={onRefresh}
+              disabled={isLoading || !isAuthenticated}
+              size="sm"
+            >
               <RefreshCw
                 className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
               />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
-            {walletStatus !== 'connected' && <Button onClick={() => connect({email: undefined})}>
-              Connect
-            </Button>}
+            {walletStatus !== "connected" && (
+              <Button
+                onClick={() => connect({ email: undefined })}
+                disabled={walletStatus === "initializing"}
+                size="sm"
+              >
+                {walletStatus === "initializing"
+                  ? "Connecting..."
+                  : "Connect Wallet"}
+              </Button>
+            )}
           </div>
         </div>
       </div>

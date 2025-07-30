@@ -134,6 +134,89 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Subscribe to wallet status changes
+  useEffect(() => {
+    if (!wallet || !isInitialized) return;
+
+    let unsubscribe: (() => void) | undefined;
+
+    const setupStatusSubscription = async () => {
+      try {
+        // Initialize wallet if not already done
+        await wallet.init(WALLET_INIT_OPTIONS).catch((e) => {
+          if (!String(e).includes("Already initialized")) throw e;
+        });
+
+        // Subscribe to status updates with correct signature
+        if (typeof wallet.subscribe === 'function') {
+          unsubscribe = wallet.subscribe('status-update', async (status: string, prevStatus: string) => {
+            console.log('Wallet status changed:', { status, prevStatus });
+            
+            // Handle wallet connection
+            if (status === 'connected') {
+              setWalletStatus('connected');
+              // Auto-authenticate when wallet connects
+              try {
+                const user = await wallet.getUserInfo().catch(() => null);
+                if (user) {
+                  setUserInfo(user);
+                  setIsAuthenticated(true);
+                  setAuthMethod("wallet");
+                  
+                  // Generate token
+                  try {
+                    const token = await generateWalletToken(user);
+                    if (token) {
+                      setToken(token);
+                    }
+                  } catch (tokenError) {
+                    console.error("Auto wallet token generation failed", tokenError);
+                  }
+                }
+              } catch (error) {
+                console.error('Auto-authentication failed:', error);
+              }
+            }
+            
+            // Handle wallet disconnect - this is the key logic!
+            if (prevStatus === 'connected' && status === 'ready') {
+              console.log('Wallet disconnected - clearing auth state');
+              setWalletStatus('disconnected');
+              // Clear auth state when wallet disconnects
+              setIsAuthenticated(false);
+              setUserInfo(null);
+              setAuthMethod(null);
+              setToken(undefined);
+              setTokenExpiration(null);
+              setSessionId(null);
+              setError(null);
+            }
+            
+            // Handle other status changes
+            if (status === 'connecting') {
+              setWalletStatus('initializing');
+            } else if (status === 'error') {
+              setWalletStatus('error');
+            } else if (status === 'ready' && prevStatus !== 'connected') {
+              // Wallet is ready but not connected
+              setWalletStatus('disconnected');
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Failed to setup wallet status subscription:', error);
+      }
+    };
+
+    setupStatusSubscription();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [wallet, isInitialized]);
+
   // Set up token refresh interval
   useEffect(() => {
     if (!isAuthenticated || authMethod !== "wallet" || !tokenExpiration) {
