@@ -32,7 +32,6 @@ interface EnrichedUserActivityProps {
 export function EnrichedUserActivity({
   user,
   onBack,
-  campaignId,
   onViewTelegramActivity,
 }: EnrichedUserActivityProps) {
 

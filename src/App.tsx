@@ -97,14 +97,14 @@ export default function CommunityIntelligenceDashboard() {
 
             const isFirstLoad = previousOrganization.current === null;
       const organizationChanged = previousOrganization.current !== null && previousOrganization.current !== selectedOrganization;
-      
+
       console.log("🔍 App.tsx - Organization change check:", {
         isFirstLoad,
         organizationChanged,
         previous: previousOrganization.current,
         current: selectedOrganization
       });
-      
+
       previousOrganization.current = selectedOrganization;
 
       // Reset campaigns loaded state when organization changes
@@ -129,19 +129,19 @@ export default function CommunityIntelligenceDashboard() {
             currentOrg: selectedOrganization,
             availableCampaigns: camps.map(c => c.campaignId.toString())
           });
-          
+
           // Check if selected campaign exists in the available campaigns
-          const isCampaignAvailable = camps.some(camp => 
+          const isCampaignAvailable = camps.some(camp =>
             camp.campaignId.toString() === selectedCampaign
           );
-          
+
           if (organizationChanged || !selectedCampaign || (selectedCampaign && !isCampaignAvailable)) {
             const newCampaignId = camps[0].campaignId.toString();
             let reason = "";
             if (organizationChanged) reason = "organization changed";
             else if (!selectedCampaign) reason = "no campaign selected";
             else if (!isCampaignAvailable) reason = "current campaign not available in new organization";
-            
+
             console.log(`🔄 App.tsx - Setting campaign due to ${reason}:`, newCampaignId, "previous campaign:", selectedCampaign);
             setSelectedCampaign(newCampaignId);
           } else if (isFirstLoad && selectedCampaign && isCampaignAvailable) {

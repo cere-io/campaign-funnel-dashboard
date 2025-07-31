@@ -21,17 +21,14 @@ import {
   BarChart3,
   TrendingUp,
 } from "lucide-react";
-import { api, type QuestActivitiesMap, type CustomPayload } from "../lib/api";
+import {api, type QuestActivitiesMap, type CustomPayload, type User} from "../lib/api";
 import { Loader } from "./ui/loader";
 
 interface UserActivityDetailProps {
-  user: {
-    user: string;
-    username?: string;
-  };
+  user: User;
   campaignId: string;
   onBack: () => void;
-  onViewTelegramActivity?: (user: { user: string; username?: string }) => void;
+  onViewTelegramActivity?: (user: User) => void;
 }
 
 export function UserActivityDetail({
