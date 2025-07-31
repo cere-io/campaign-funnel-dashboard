@@ -334,8 +334,8 @@ export const api = {
   async getUsers({
     organizationId,
     campaignId,
-    // dateFrom,
-    // dateTo,
+    dateFrom,
+    dateTo,
   }: {
     campaignId: string;
     organizationId: string;
@@ -343,6 +343,34 @@ export const api = {
     dateTo: string;
   }): Promise<User[]> {
     try {
+      console.log("API getUsers params:", {
+        campaign_id: campaignId,
+        organization_id: organizationId,
+        date_from: dateFrom,
+        date_to: dateTo,
+      });
+
+      console.log("Date range:", {
+        from: new Date(dateFrom).toLocaleDateString(),
+        to: new Date(dateTo).toLocaleDateString(),
+        daysRange: Math.ceil((new Date(dateTo).getTime() - new Date(dateFrom).getTime()) / (1000 * 60 * 60 * 24))
+      });
+
+      const params: any = {
+        campaign_id: campaignId,
+        organization_id: organizationId,
+        account_id: "6R44Eo6brL3YMMtFuocjgdCN9REzpHHWCGS5AVh49btFN13J",
+      };
+
+      if (dateFrom && dateFrom !== "Invalid Date") {
+        params.date_from = dateFrom;
+      }
+      if (dateTo && dateTo !== "Invalid Date") {
+        params.date_to = dateTo;
+      }
+
+      console.log("Final API params:", params);
+
       const response = await fetch(
         `${env.RULE_SERVICE_API_URL}/data-service/${env.DATA_SERVICE_ID}/query/get_leaderboard_for_funnel`,
         {
@@ -351,13 +379,7 @@ export const api = {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            params: {
-              campaign_id: campaignId,
-              organization_id: organizationId,
-              // date_from: dateFrom,
-              // date_to: dateTo,
-              account_id: "6R44Eo6brL3YMMtFuocjgdCN9REzpHHWCGS5AVh49btFN13J",
-            },
+            params,
           }),
         },
       );
@@ -366,7 +388,63 @@ export const api = {
       }
 
       const data = await response.json();
-      return data.result.data.data.users;
+      console.log("API response:", data);
+      console.log("Users count:", data.result?.data?.data?.users?.length || 0);
+
+      const users = data.result.data.data.users;
+
+      // if (users.length === 0 && (params.date_from || params.date_to)) {
+      //   console.log("Empty result with dates, trying without date filters...");
+      //
+      //   const fallbackParams = {
+      //     campaign_id: campaignId,
+      //     organization_id: organizationId,
+      //     account_id: "6R44Eo6brL3YMMtFuocjgdCN9REzpHHWCGS5AVh49btFN13J",
+      //   };
+      //
+      //   const fallbackResponse = await fetch(
+      //     `${env.RULE_SERVICE_API_URL}/data-service/${env.DATA_SERVICE_ID}/query/get_leaderboard_for_funnel`,
+      //     {
+      //       method: "POST",
+      //       headers: {
+      //         "Content-Type": "application/json",
+      //       },
+      //       body: JSON.stringify({
+      //         params: fallbackParams,
+      //       }),
+      //     },
+      //   );
+      //
+      //   if (fallbackResponse.ok) {
+      //     const fallbackData = await fallbackResponse.json();
+      //     console.log("Fallback response users count:", fallbackData.result?.data?.data?.users?.length || 0);
+      //
+      //     const allUsers = fallbackData.result.data.data.users;
+      //
+      //     if (allUsers.length > 0 && (dateFrom || dateTo)) {
+      //       const fromDate = dateFrom ? new Date(dateFrom) : null;
+      //       const toDate = dateTo ? new Date(dateTo) : null;
+      //
+      //       const filteredUsers = allUsers.filter((user: any) => {
+      //         if (!user.last_activity) return false;
+      //
+      //         const userDate = new Date(user.last_activity);
+      //
+      //         if (fromDate && userDate < fromDate) return false;
+      //         if (toDate && userDate > toDate) return false;
+      //
+      //         return true;
+      //       });
+      //
+      //       console.log("Client-side filtered users count:", filteredUsers.length);
+      //       return filteredUsers;
+      //     }
+      //
+      //     return allUsers;
+      //   }
+      // }
+
+      return users;
     } catch (error) {
       logger.error("Error fetching users data:", error);
       return [];
@@ -537,7 +615,7 @@ export const api = {
 
       // Extract real data structure for group analysis
       const treeBlob = data.result?.data?.data?.tree_blob || {};
-      
+
       return {
         queryId: `group_${groupId}`,
         stats: treeBlob.stats || {},
@@ -585,7 +663,7 @@ export const api = {
 
       // Extract real data structure from the actual API response
       const userData = data.result?.data?.data || {};
-      
+
       // Process sentiment breakdown from messages_by_topics
       const sentimentBreakdown: Record<string, number> = {};
       if (userData.messages_by_topics) {
@@ -596,7 +674,7 @@ export const api = {
           });
         });
       }
-      
+
       return {
         // Old structure for compatibility
         userId,

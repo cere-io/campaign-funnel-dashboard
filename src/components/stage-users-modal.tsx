@@ -5,7 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Input } from "./ui/input"
-import { Users, Search, Trophy, User as UserIcon, Calendar, TrendingUp } from "lucide-react"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion"
+import { Users, Search, Trophy, User as UserIcon, Calendar, TrendingUp, Wallet, Brain, Play, Twitter, Clock, CheckCircle, XCircle } from "lucide-react"
 import { type User } from '../lib/api';
 
 interface StageUsersModalProps {
@@ -109,6 +110,149 @@ export function StageUsersModal({ isOpen, onClose, stage, users, campaignId }: S
     return Object.values(completedCounts).reduce((sum, count) => sum + count, 0)
   }
 
+  const getQuestIcon = (questType: string, subtype?: string) => {
+    if (questType === "quiz") return Brain
+    if (questType === "video") return Play
+    if (questType === "custom") {
+      if (subtype === "wallet") return Wallet
+      if (subtype === "dex") return Trophy
+      if (subtype === "x_connect") return Twitter
+    }
+    if (questType === "social") return Twitter
+    return Clock
+  }
+
+  const renderQuestDetails = (user: User) => {
+    const quests = user.quests
+    if (!quests) return <div className="text-sm text-muted-foreground">No quest data available</div>
+
+    return (
+      <div className="space-y-4">
+        {/* Quiz Tasks */}
+        {quests.quizTasks && quests.quizTasks.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <Brain className="w-4 h-4 text-blue-500" />
+              Quiz Tasks ({quests.quizTasks.filter(t => t.completed).length}/{quests.quizTasks.length})
+            </h4>
+            <div className="space-y-2">
+              {quests.quizTasks.map((task, idx) => (
+                <div key={task.id || idx} className="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-800 p-2 rounded">
+                  <span className="flex items-center gap-2">
+                    {task.completed ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-red-500" />}
+                    {task.title || `Quiz ${idx + 1}`}
+                  </span>
+                  <Badge variant={task.completed ? "default" : "secondary"} className="text-xs">
+                    {task.completed ? "Completed" : "Pending"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Video Tasks */}
+        {quests.videoTasks && quests.videoTasks.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <Play className="w-4 h-4 text-purple-500" />
+              Video Tasks ({quests.videoTasks.filter(t => t.completed).length}/{quests.videoTasks.length})
+            </h4>
+            <div className="space-y-2">
+              {quests.videoTasks.map((task, idx) => (
+                <div key={task.id || idx} className="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-800 p-2 rounded">
+                  <span className="flex items-center gap-2">
+                    {task.completed ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-red-500" />}
+                    {task.title || `Video ${idx + 1}`}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-600 font-medium">+{task.points || 0}</span>
+                    <Badge variant={task.completed ? "default" : "secondary"} className="text-xs">
+                      {task.completed ? "Completed" : "Pending"}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Custom Tasks */}
+        {quests.customTasks && quests.customTasks.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <Trophy className="w-4 h-4 text-green-500" />
+              Custom Tasks ({quests.customTasks.filter(t => t.completed).length}/{quests.customTasks.length})
+            </h4>
+            <div className="space-y-2">
+              {quests.customTasks.map((task, idx) => {
+                const Icon = getQuestIcon("custom", task.subtype)
+                return (
+                  <div key={task.id || idx} className="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-800 p-2 rounded">
+                    <span className="flex items-center gap-2">
+                      {task.completed ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-red-500" />}
+                      <Icon className="w-3 h-3" />
+                      {task.title || `${task.subtype || 'Custom'} Task`}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-600 font-medium">+{task.points || 0}</span>
+                      <Badge variant={task.completed ? "default" : "secondary"} className="text-xs">
+                        {task.completed ? "Completed" : "Pending"}
+                      </Badge>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Social Tasks */}
+        {quests.socialTasks && quests.socialTasks.length > 0 && (
+          <div>
+            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <Twitter className="w-4 h-4 text-blue-400" />
+              Social Tasks ({quests.socialTasks.filter(t => t.completed).length}/{quests.socialTasks.length})
+            </h4>
+            <div className="space-y-2">
+              {quests.socialTasks.map((task, idx) => (
+                <div key={task.id || idx} className="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-800 p-2 rounded">
+                  <span className="flex items-center gap-2">
+                    {task.completed ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-red-500" />}
+                    Social Task {idx + 1}
+                  </span>
+                  <Badge variant={task.completed ? "default" : "secondary"} className="text-xs">
+                    {task.completed ? "Completed" : "Pending"}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Additional Info */}
+        <div className="pt-2 border-t">
+          <div className="grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <span className="text-muted-foreground">Total Points:</span>
+              <span className="ml-2 font-medium text-green-600">+{user.points || 0}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Completed:</span>
+              <span className="ml-2 font-medium">{user.quests_completed || 0}</span>
+            </div>
+            {user.invitees && user.invitees.length > 0 && (
+              <div className="col-span-2">
+                <span className="text-muted-foreground">Invitees:</span>
+                <span className="ml-2 font-medium">{user.invitees.length}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -181,65 +325,79 @@ export function StageUsersModal({ isOpen, onClose, stage, users, campaignId }: S
             </Card>
           </div>
 
-          {/* Users List */}
+          {/* Users List with Accordion */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">User Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                                {filteredUsers?.map((user, index) => (
-                  <div
-                    key={user.user || index}
-                    className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                        <UserIcon className="w-4 h-4 text-blue-600" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-medium">{user.username || user.user}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {user.last_activity ? new Date(user.last_activity).toLocaleString() : 'No activity'}
-                        </div>
-                        {user.external_wallet_address && (
-                          <div className="text-xs text-muted-foreground font-mono">
-                            {user.external_wallet_address.substring(0, 20)}...
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <div className="text-xs text-muted-foreground">
-                            {getCompletedQuestsByType(user)}/{user.quests_completed || 0} quests
-                          </div>
-                          {(() => {
-                            const dexTask = user.quests?.customTasks?.find((task: any) => task.subtype === "dex")
-                            if (dexTask) {
-                              return (
-                                <div className="text-xs text-blue-600 font-medium">
-                                  DEX: {dexTask.completed ? "✓ Completed" : "⏳ Started"}
+              {filteredUsers.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No users found matching your search.</div>
+              ) : (
+                <div className="max-h-96 overflow-y-auto">
+                  <Accordion type="single" collapsible className="w-full">
+                    {filteredUsers?.map((user, index) => (
+                      <AccordionItem key={user.user || index} value={`user-${index}`} className="border-b">
+                        <AccordionTrigger className="hover:no-underline">
+                          <div className="flex items-center justify-between w-full pr-4">
+                            <div className="flex items-center gap-4">
+                              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                                <UserIcon className="w-4 h-4 text-blue-600" />
+                              </div>
+                              <div className="min-w-0 text-left">
+                                <div className="font-medium">{user.username || user.user}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {user.last_activity ? new Date(user.last_activity).toLocaleString() : 'No activity'}
                                 </div>
-                              )
-                            }
-                            return null
-                          })()}
-                        </div>
-                      </div>
-                    </div>
+                                {user.external_wallet_address && (
+                                  <div className="text-xs text-muted-foreground font-mono">
+                                    {user.external_wallet_address.substring(0, 20)}...
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="text-xs text-muted-foreground">
+                                    {getCompletedQuestsByType(user)}/{user.quests_completed || 0} quests
+                                  </div>
+                                  {(() => {
+                                    const dexTask = user.quests?.customTasks?.find((task: any) => task.subtype === "dex")
+                                    if (dexTask) {
+                                      return (
+                                        <div className="text-xs text-blue-600 font-medium">
+                                          DEX: {dexTask.completed ? "✓ Completed" : "⏳ Started"}
+                                        </div>
+                                      )
+                                    }
+                                    return null
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
 
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-green-600">+{user.points || 0}</div>
-                        <div className="text-xs text-muted-foreground">points</div>
-                      </div>
-                      {getStatusBadge(user)}
-                    </div>
-                  </div>
-                ))}
-
-                {filteredUsers.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">No users found matching your search.</div>
-                )}
-              </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <div className="text-sm font-medium text-green-600">+{user.points || 0}</div>
+                                <div className="text-xs text-muted-foreground">points</div>
+                              </div>
+                              {getStatusBadge(user)}
+                            </div>
+                          </div>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-0">
+                          <div className="pl-14 pr-4 pb-4">
+                            <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4">
+                              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                                <Trophy className="w-4 h-4 text-amber-500" />
+                                Quest Progress Details
+                              </h3>
+                              {renderQuestDetails(user)}
+                            </div>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

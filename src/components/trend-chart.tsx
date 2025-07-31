@@ -60,7 +60,7 @@ export function TrendChart({ data }: TrendChartProps) {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const startedValue = payload.find((p: any) => p.dataKey === "started")?.value || 0
-      const connectedValue = payload.find((p: any) => p.dataKey === "connected")?.value || 0
+      // const connectedValue = payload.find((p: any) => p.dataKey === "connected")?.value || 0
       const completedValue = payload.find((p: any) => p.dataKey === "completed")?.value || 0
       const conversionRate = startedValue > 0 ? ((completedValue / startedValue) * 100).toFixed(1) : "0"
 
@@ -80,13 +80,13 @@ export function TrendChart({ data }: TrendChartProps) {
               <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{startedValue}</span>
             </div>
 
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                <span className="text-xs text-slate-600 dark:text-slate-400">Connected Wallet</span>
-              </div>
-              <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{connectedValue}</span>
-            </div>
+            {/*<div className="flex items-center justify-between gap-4">*/}
+            {/*  <div className="flex items-center gap-2">*/}
+            {/*    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>*/}
+            {/*    <span className="text-xs text-slate-600 dark:text-slate-400">Connected Wallet</span>*/}
+            {/*  </div>*/}
+            {/*  <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{connectedValue}</span>*/}
+            {/*</div>*/}
 
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2">

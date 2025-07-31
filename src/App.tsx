@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { subDays } from "date-fns";
 
 import { Button } from "./components/ui/button";
@@ -42,6 +42,10 @@ export default function CommunityIntelligenceDashboard() {
   >("dashboard");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [activeView, setActiveView] = useState("overview");
+  
+  // Track if this is the first render to avoid resetting on initial load
+  const isFirstRender = useRef(true);
+  const previousOrganization = useRef<string | null>(null);
 
   const [funnelData, setFunnelData] = React.useState<FunnelData>();
   const [communityData, setCommunityData] = React.useState<ICommunity>();
@@ -75,12 +79,23 @@ export default function CommunityIntelligenceDashboard() {
     const loadCampaigns = async () => {
       if (!token || !selectedOrganization) return;
 
+      const organizationChanged = previousOrganization.current !== selectedOrganization;
+      previousOrganization.current = selectedOrganization;
+
       try {
         const camps = await api.getCampaigns(selectedOrganization, token);
         setCampaigns(camps);
 
-        if (camps.length > 0 && !selectedCampaign) {
-          setSelectedCampaign(camps[0].campaignId.toString());
+        // Set campaign when organization changes or no campaign is selected
+        if (camps.length > 0) {
+          if (organizationChanged || !selectedCampaign) {
+            const newCampaignId = camps[0].campaignId.toString();
+            console.log("Setting campaign due to organization change:", newCampaignId);
+            setSelectedCampaign(newCampaignId);
+          }
+        } else {
+          // Clear campaign if no campaigns available
+          setSelectedCampaign("");
         }
       } catch (error) {
         console.error("Failed to load campaigns:", error);
@@ -101,6 +116,18 @@ export default function CommunityIntelligenceDashboard() {
       setIsLoadingOrganizations(false);
     }
   }, [isAuthenticated]);
+
+  // Reset view when campaign or organization changes
+  React.useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    
+    console.log("Resetting view due to campaign/organization change");
+    setSelectedView("dashboard");
+    setSelectedUser(null);
+  }, [selectedCampaign, selectedOrganization]);
 
   React.useEffect(() => {
     if (!selectedCampaign) return;

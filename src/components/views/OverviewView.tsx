@@ -57,21 +57,116 @@ export function OverviewView({
     });
   };
 
-  // Calculate metrics from funnel data
+  // Calculate metrics from user data (same logic as StageUsersModal)
+  const getUsersForStage = (stage: string) => {
+    if (!users) return []
+    
+    switch (stage) {
+      case "started":
+        // Users Who Started DEX Swap - users with DEX task (regardless of completion)
+        return users.filter(user => {
+          const dexTask = user.quests?.customTasks?.find((task: any) => task.subtype === "dex")
+          return !!dexTask // Has DEX task, regardless of completion status
+        })
+      case "connected":
+        // Users who connected wallet (have external_wallet_address)
+        return users.filter(user => user.external_wallet_address)
+      case "completed":
+        // Users Who Completed Trade - users with completed DEX task
+        return users.filter(user => {
+          const dexTask = user.quests?.customTasks?.find((task: any) => task.subtype === "dex")
+          return dexTask?.completed === true // Specifically completed DEX swap
+        })
+      default:
+        return users
+    }
+  }
+
+  const startedDexUsers = getUsersForStage("started")
+  const connectedWalletUsers = getUsersForStage("connected")
+  const completedTradeUsers = getUsersForStage("completed")
+
+  // Calculate trends data based on user activity dates
+  const calculateTrendsFromUsers = () => {
+    if (!users || users.length === 0) {
+      return {
+        completedTrade: [],
+        connectedCereWallet: [],
+        startedDexSwap: [],
+      }
+    }
+
+    // Get all unique dates from user activities and sort them
+    const allDates = users
+      .filter(user => user.last_activity)
+      .map(user => new Date(user.last_activity!).toISOString().split('T')[0])
+      .filter((date, index, self) => self.indexOf(date) === index)
+      .sort()
+
+    // Calculate cumulative data for each date
+    const trends = allDates.map(currentDate => {
+      // Count users who had activity up to this date
+      const usersUpToDate = users.filter(user => {
+        if (!user.last_activity) return false
+        const userDate = new Date(user.last_activity).toISOString().split('T')[0]
+        return userDate <= currentDate
+      })
+
+      // Count users in each stage up to this date
+      const startedCount = usersUpToDate.filter(user => {
+        const dexTask = user.quests?.customTasks?.find((task: any) => task.subtype === "dex")
+        return !!dexTask
+      }).length
+
+      const connectedCount = usersUpToDate.filter(user => 
+        user.external_wallet_address
+      ).length
+
+      const completedCount = usersUpToDate.filter(user => {
+        const dexTask = user.quests?.customTasks?.find((task: any) => task.subtype === "dex")
+        return dexTask?.completed === true
+      }).length
+
+      return {
+        date: currentDate,
+        started: startedCount,
+        connected: connectedCount,
+        completed: completedCount
+      }
+    })
+
+    // Convert to API format
+    const result = {
+      startedDexSwap: trends.map(({ date, started }) => ({ date, value: started })),
+      connectedCereWallet: trends.map(({ date, connected }) => ({ date, value: connected })),
+      completedTrade: trends.map(({ date, completed }) => ({ date, value: completed }))
+    }
+
+    console.log("Calculated trends data:", result)
+    console.log("All dates found:", allDates)
+    console.log("Users with last_activity:", users.filter(u => u.last_activity).length)
+    
+    return result
+  }
+
+  // Create funnel data based on user data (synchronized with modal)
+  const userBasedFunnelData = {
+    summary: {
+      startedDexSwap: startedDexUsers.length,
+      connectedCereWallet: connectedWalletUsers.length,
+      completedTrade: completedTradeUsers.length,
+      executedAt: new Date().toISOString(),
+    },
+    trends: calculateTrendsFromUsers()
+  }
+
   const campaignMetrics = {
     totalUsers: activeUsersCount || 0,
-    completedTrades: funnelData?.summary?.completedTrade || 0,
-    conversionRate: funnelData?.summary?.startedDexSwap
-      ? (
-          (funnelData.summary.completedTrade /
-            funnelData.summary.startedDexSwap) *
-          100
-        ).toFixed(1)
-      : "0.0",
+    completedTrades: completedTradeUsers.length,
+    conversionRate: startedDexUsers.length && completedTradeUsers.length
+        ? ((completedTradeUsers.length / startedDexUsers.length) * 100).toFixed(1)
+        : "0.0",
   };
-
-  console.log({ funnelData });
-  console.log("Trends data:", funnelData?.trends);
 
   return (
     <div className="space-y-6">
@@ -145,7 +240,7 @@ export function OverviewView({
             </CardHeader>
             <CardContent>
               <FunnelChart
-                data={funnelData?.summary}
+                data={userBasedFunnelData.summary}
                 onStageClick={handleFunnelStageClick}
               />
             </CardContent>
@@ -157,7 +252,7 @@ export function OverviewView({
               <CardDescription>Historical performance data</CardDescription>
             </CardHeader>
             <CardContent>
-              <TrendChart data={funnelData?.trends} />
+              <TrendChart data={userBasedFunnelData.trends} />
             </CardContent>
           </Card>
         </div>
