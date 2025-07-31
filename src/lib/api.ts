@@ -564,18 +564,49 @@ export const api = {
 
       // Extract real data structure for group analysis
       const treeBlob = data.result?.data?.data?.tree_blob || {};
+      logger.debug("Tree blob structure:", {
+        hasStats: !!treeBlob.stats,
+        hasUsers: !!treeBlob.users,
+        hasMessages: !!treeBlob.messages,
+        hasTopics: !!treeBlob.topics,
+        messagesType: typeof treeBlob.messages,
+        messagesKeys: treeBlob.messages ? Object.keys(treeBlob.messages).length : 0,
+        usersKeys: treeBlob.users ? Object.keys(treeBlob.users).length : 0,
+        topicsKeys: treeBlob.topics ? Object.keys(treeBlob.topics).length : 0
+      });
+
+      // Transform the data like in conversation-dashboard
+      const conversations = transformGroupTreeData(treeBlob);
 
       return {
         queryId: `group_${groupId}`,
-        stats: treeBlob.stats || {},
+        stats: treeBlob.stats || {
+          totalUsers: Object.keys(treeBlob.users || {}).length,
+          totalTopics: Object.keys(treeBlob.topics || {}).length,
+          totalMessages: Object.keys(treeBlob.messages || {}).length,
+          lastProcessedTime: new Date().toISOString(),
+          activeConversations: 0,
+          activeContextWindows: 0,
+          trackedRelationships: 0,
+        },
         users: treeBlob.users || {},
-        conversations: treeBlob.conversations || [],
+        conversations: conversations,
         metadata: data.metadata,
       };
     } catch (error) {
       logger.error("Error fetching latest tree:", error);
       return {
         queryId: groupId,
+        stats: {
+          totalUsers: 0,
+          totalTopics: 0,
+          totalMessages: 0,
+          lastProcessedTime: new Date().toISOString(),
+          activeConversations: 0,
+          activeContextWindows: 0,
+          trackedRelationships: 0,
+        },
+        users: {},
         conversations: [],
         metadata: null,
       };
@@ -612,23 +643,42 @@ export const api = {
       // Extract real data structure from the actual API response
       const userData = data.result?.data?.data || {};
 
-      // Process sentiment breakdown from messages_by_topics
+      // Process sentiment breakdown and extract all messages from messages_by_topics
       const sentimentBreakdown: Record<string, number> = {};
-      if (userData.messages_by_topics) {
+      const allMessages: ConversationNode[] = [];
+
+      if (userData.messages_by_topics && Array.isArray(userData.messages_by_topics)) {
         userData.messages_by_topics.forEach((topic: any) => {
-          topic.messages?.forEach((message: any) => {
-            const sentiment = message.sentiment || 'neutral';
-            sentimentBreakdown[sentiment] = (sentimentBreakdown[sentiment] || 0) + 1;
-          });
+          if (topic.messages && Array.isArray(topic.messages)) {
+            topic.messages.forEach((message: any) => {
+              const sentiment = message.sentiment || 'neutral';
+              sentimentBreakdown[sentiment] = (sentimentBreakdown[sentiment] || 0) + 1;
+
+              // Create conversation node like in conversation-dashboard
+              allMessages.push({
+                id: message.message_id?.toString() || `msg_${Date.now()}_${Math.random()}`,
+                message: message.content || message.message || "No content",
+                timestamp: message.timestamp || new Date().toISOString(),
+                user: userData.user_name || `User ${userId}`,
+                topic: topic.topic_name || "Unknown Topic",
+                sentiment: message.sentiment,
+                conversationId: message.conversation_id?.toString(),
+                replyToMessageId: message.reply_to_message_id?.toString(),
+              });
+            });
+          }
         });
       }
+
+      // Sort messages by timestamp (most recent first)
+      allMessages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       return {
         // Old structure for compatibility
         userId,
         userName: userData.user_name || "Unknown User",
         groupId,
-        conversations: [],
+        conversations: allMessages,
         statistics: {
           messageCount: parseInt(userData.total_messages || "0"),
           topicsEngaged: parseInt(userData.unique_topics_participated || "0"),
@@ -697,3 +747,35 @@ export const api = {
     }
   },
 };
+
+// Helper function to transform group tree data like in conversation-dashboard
+function transformGroupTreeData(treeBlob: any): ConversationNode[] {
+  if (!treeBlob.users || !treeBlob.messages) {
+    logger.debug("Missing users or messages in tree_blob", {
+      hasUsers: !!treeBlob.users,
+      hasMessages: !!treeBlob.messages
+    });
+    return [];
+  }
+
+  const users = treeBlob.users;
+  const messages = treeBlob.messages;
+  const topics = treeBlob.topics || {};
+
+  logger.debug("Transforming tree data:", {
+    messageCount: Object.keys(messages).length,
+    userCount: Object.keys(users).length,
+    topicCount: Object.keys(topics).length
+  });
+
+  return Object.values(messages).map((message: any) => ({
+    id: message.id?.toString() || `msg_${Date.now()}_${Math.random()}`,
+    message: message.content || message.message || "No content",
+    timestamp: message.timestamp || new Date().toISOString(),
+    user: users[message.userId]?.name || `User ${message.userId}` || "Unknown User",
+    topic: topics[message.topicId]?.name || `Topic ${message.topicId}` || "Unknown Topic",
+    sentiment: message.sentiment,
+    conversationId: message.conversationId?.toString(),
+    replyToMessageId: message.replyToMessageId?.toString(),
+  }));
+}

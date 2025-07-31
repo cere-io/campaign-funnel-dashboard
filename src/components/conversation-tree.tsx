@@ -1,11 +1,13 @@
 "use client"
 
-import React, { useState } from "react"
-import { ChevronDown, ChevronRight, MessageSquare, User, Hash } from "lucide-react"
+import type React from "react"
+
+import { useState } from "react"
+import { ChevronDown, ChevronRight, MessageSquare, Users, User, Hash, ArrowRight } from "lucide-react"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
-import { Card, CardContent } from "./ui/card"
-import type { ConversationNode, ConversationTreeData } from "../lib/api"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible"
+import type { ConversationTreeData, ConversationNode } from "../lib/api"
 
 interface TreeNode {
   id: string
@@ -36,189 +38,324 @@ export function ConversationTree({ data, queryType }: ConversationTreeProps) {
     setExpandedNodes(newExpanded)
   }
 
-  // Build tree structure from conversation data
-  const buildTreeStructure = (conversations: ConversationNode[]): TreeNode[] => {
-    if (!conversations || conversations.length === 0) return []
+  const buildTreeStructure = (): TreeNode[] => {
+    if (queryType === "user") {
+      return buildUserTree()
+    } else {
+      return buildGroupTree()
+    }
+  }
 
-    // Group by topic first
-    const topicGroups = conversations.reduce((acc, conv) => {
-      const topic = conv.topic || "Unknown Topic"
-      if (!acc[topic]) {
-        acc[topic] = []
+  const buildUserTree = (): TreeNode[] => {
+    // For user mode, use conversations data if available
+    const conversations = data.conversations || []
+    if (conversations.length === 0) {
+      return []
+    }
+
+    const topicMap = new Map<string, ConversationNode[]>()
+
+    conversations.forEach((message) => {
+      if (!topicMap.has(message.topic)) {
+        topicMap.set(message.topic, [])
       }
-      acc[topic].push(conv)
-      return acc
-    }, {} as Record<string, ConversationNode[]>)
+      topicMap.get(message.topic)!.push(message)
+    })
 
-    return Object.entries(topicGroups).map(([topic, convs]) => {
-      // Group conversations by conversationId within each topic
-      const conversationGroups = convs.reduce((acc, conv) => {
-        const convId = conv.conversationId || `single-${conv.id}`
-        if (!acc[convId]) {
-          acc[convId] = []
+    return Array.from(topicMap.entries()).map(([topicName, messages]) => {
+      const conversationMap = new Map<string, ConversationNode[]>()
+
+      messages.forEach((message) => {
+        const convId = message.conversationId || "unknown"
+        if (!conversationMap.has(convId)) {
+          conversationMap.set(convId, [])
         }
-        acc[convId].push(conv)
-        return acc
-      }, {} as Record<string, ConversationNode[]>)
+        conversationMap.get(convId)!.push(message)
+      })
 
-      const conversationNodes: TreeNode[] = Object.entries(conversationGroups).map(([convId, messages]) => {
-        const messageNodes: TreeNode[] = messages
-          .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-          .map((msg) => ({
-            id: `message-${msg.id}`,
-            type: "message" as const,
-            title: msg.message.length > 60 ? `${msg.message.slice(0, 60)}...` : msg.message,
-            subtitle: `${msg.user} • ${new Date(msg.timestamp).toLocaleString()}`,
-            data: msg,
-          }))
+      const conversationNodes: TreeNode[] = Array.from(conversationMap.entries()).map(([convId, convMessages]) => {
+        const sortedMessages = convMessages.sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+        )
+
+        const messageNodes: TreeNode[] = sortedMessages.map((message, index) => ({
+          id: `message-${message.id}`,
+          type: "message",
+          title: message.message,
+          subtitle: `${message.user} • ${new Date(message.timestamp).toLocaleString()}`,
+          data: { ...message, messageIndex: index + 1 },
+        }))
 
         return {
           id: `conversation-${convId}`,
-          type: "conversation" as const,
-          title: `Conversation ${convId}`,
-          subtitle: `${messages.length} messages`,
-          count: messages.length,
+          type: "conversation",
+          title: `Conversation ${convId.split("_").pop()?.substring(0, 8) || "Unknown"}`,
+          subtitle: `${convMessages.length} messages • ${new Date(sortedMessages[0].timestamp).toLocaleDateString()}`,
+          count: convMessages.length,
           children: messageNodes,
-          data: { conversationId: convId, messages },
+          data: { conversationId: convId, messages: sortedMessages },
         }
       })
 
       return {
-        id: `topic-${topic}`,
-        type: "topic" as const,
-        title: topic,
-        subtitle: `${convs.length} messages, ${conversationGroups ? Object.keys(conversationGroups).length : 0} conversations`,
-        count: convs.length,
+        id: `topic-${topicName}`,
+        type: "topic",
+        title: `Topic ${topicName}`,
+        subtitle: `${messages.length} messages across ${conversationNodes.length} conversations`,
+        count: messages.length,
         children: conversationNodes,
-        data: { topic, conversations: convs },
+        data: { topicName, totalMessages: messages.length },
       }
     })
   }
 
-  const renderTreeNode = (node: TreeNode, level: number = 0): React.ReactNode => {
+  const buildGroupTree = (): TreeNode[] => {
+    // For group mode, use the users data structure
+    if (!data.users) {
+      return []
+    }
+
+    const userEntries = Object.entries(data.users)
+
+    // Sort users by message count (descending - most messages first)
+    const sortedUserEntries = userEntries.sort((a, b) => {
+      const aCount = a[1].messageIds?.length || 0
+      const bCount = b[1].messageIds?.length || 0
+      return bCount - aCount
+    })
+
+    return sortedUserEntries.map(([userId, user]) => {
+      // Get all messages for this user from conversations
+      const conversations = data.conversations || []
+      const userMessages = conversations.filter(
+        conv => conv.user === user.name && user.messageIds?.includes(parseInt(conv.id))
+      )
+
+      // Group messages by topic name
+      const topicMap = new Map<string, ConversationNode[]>()
+      userMessages.forEach(message => {
+        if (!topicMap.has(message.topic)) {
+          topicMap.set(message.topic, [])
+        }
+        topicMap.get(message.topic)!.push(message)
+      })
+
+      // Sort topics by message count (descending)
+      const sortedTopicEntries = Array.from(topicMap.entries()).sort((a, b) => b[1].length - a[1].length)
+
+      const topicNodes: TreeNode[] = sortedTopicEntries.map(([topicName, topicMessages]) => {
+
+        const sortedMessages = topicMessages.sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+        )
+
+        const messageNodes: TreeNode[] = sortedMessages.map((message, index) => ({
+          id: `message-${message.id}`,
+          type: "message",
+          title: message.message,
+          subtitle: new Date(message.timestamp).toLocaleString(),
+          data: { ...message, messageIndex: index + 1 },
+        }))
+
+        return {
+          id: `topic-${userId}-${topicName.replace(/\s+/g, '-')}`,
+          type: "topic",
+          title: topicName,
+          subtitle: `${topicMessages.length} messages`,
+          count: topicMessages.length,
+          children: messageNodes.length > 0 ? messageNodes : undefined,
+          data: { topicName, user: userId, messages: sortedMessages },
+        }
+      })
+
+      return {
+        id: `user-${userId}`,
+        type: "conversation",
+        title: user.name || `User ${userId}`,
+        subtitle: `${user.messageIds?.length || 0} messages across ${topicNodes.length} topics`,
+        count: user.messageIds?.length || 0,
+        children: topicNodes,
+        data: { userName: user.name || userId, userId, totalMessages: user.messageIds?.length || 0 },
+      }
+    })
+  }
+
+  const renderTreeNode = (node: TreeNode, depth = 0): React.ReactNode => {
     const isExpanded = expandedNodes.has(node.id)
     const hasChildren = node.children && node.children.length > 0
+    const indentClass = depth > 0 ? `ml-${Math.min(depth * 4, 16)} sm:ml-${Math.min(depth * 6, 24)}` : ""
 
-    const getIcon = () => {
+    const getNodeIcon = () => {
       switch (node.type) {
         case "topic":
-          return <Hash className="w-4 h-4 text-blue-500" />
+          return <Hash className="w-4 h-4" />
         case "conversation":
-          return <MessageSquare className="w-4 h-4 text-green-500" />
+          return queryType === "group" ? <User className="w-4 h-4" /> : <MessageSquare className="w-4 h-4" />
         case "message":
-          return <User className="w-4 h-4 text-purple-500" />
+          return <ArrowRight className="w-4 h-4" />
         default:
-          return null
+          return <MessageSquare className="w-4 h-4" />
       }
     }
 
-    const getBadgeColor = () => {
+    const getNodeGradient = () => {
       switch (node.type) {
         case "topic":
-          return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+          return "from-blue-500 to-indigo-600"
         case "conversation":
-          return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+          return "from-emerald-500 to-teal-600"
         case "message":
-          return "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+          return "from-slate-400 to-slate-500"
         default:
-          return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
+          return "from-slate-400 to-slate-500"
       }
     }
 
-    return (
-      <div key={node.id} className="w-full">
-        <div
-          className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors ${
-            level > 0 ? `ml-${Math.min(level * 4, 12)}` : ""
-          }`}
-          onClick={() => hasChildren && toggleNode(node.id)}
-        >
-          {hasChildren ? (
-            isExpanded ? (
-              <ChevronDown className="w-4 h-4 text-gray-500" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-gray-500" />
-            )
-          ) : (
-            <div className="w-4 h-4" />
-          )}
-
-          {getIcon()}
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2">
-              <span className="font-medium text-gray-900 dark:text-white truncate">{node.title}</span>
-              {node.count && (
-                <Badge className={`text-xs ${getBadgeColor()}`}>
-                  {node.count}
-                </Badge>
-              )}
-            </div>
-            {node.subtitle && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{node.subtitle}</p>
-            )}
-          </div>
-
-          {node.type === "message" && node.data?.sentiment && (
-            <Badge variant="outline" className="text-xs">
-              {node.data.sentiment}
-            </Badge>
-          )}
-        </div>
-
-        {hasChildren && isExpanded && (
-          <div className="mt-1 space-y-1">
-            {node.children?.map((child) => renderTreeNode(child, level + 1))}
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const treeStructure = buildTreeStructure(data.conversations || [])
-
-  if (!data.conversations || data.conversations.length === 0) {
-    return (
-      <Card>
-        <CardContent className="p-4 sm:p-8 text-center">
-          <MessageSquare className="w-8 h-8 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-base sm:text-lg font-medium text-gray-900 dark:text-white mb-2">No Conversations Found</h3>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">
-            {queryType === "group" 
-              ? "No conversations found for this group." 
-              : "No conversations found for this user."
+    const getSentimentBadge = () => {
+      if (node.type === "message" && node.data?.sentiment) {
+        return (
+          <Badge
+            variant={
+              node.data.sentiment === "positive"
+                ? "default"
+                : node.data.sentiment === "negative"
+                  ? "destructive"
+                  : "outline"
             }
-          </p>
-        </CardContent>
-      </Card>
+            className="text-xs ml-2 rounded-full"
+          >
+            {node.data.sentiment}
+          </Badge>
+        )
+      }
+      return null
+    }
+
+    return (
+      <div key={node.id} className={`${indentClass}`}>
+        <Collapsible open={isExpanded} onOpenChange={() => hasChildren && toggleNode(node.id)}>
+          <div className={`relative group`}>
+            <div
+              className={`absolute left-0 top-0 bottom-0 w-0.5 sm:w-1 bg-gradient-to-b ${getNodeGradient()} rounded-full opacity-60`}
+            />
+            <div className="pl-3 sm:pl-6 py-2 sm:py-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all duration-200 rounded-lg ml-1 sm:ml-2">
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" className="w-full justify-start p-0 h-auto font-normal" disabled={!hasChildren}>
+                  <div className="flex items-center gap-2 sm:gap-3 w-full">
+                    {hasChildren ? (
+                      <div className="p-0.5 sm:p-1 rounded-md bg-slate-100 dark:bg-slate-700 group-hover:bg-slate-200 dark:group-hover:bg-slate-600 transition-colors">
+                        {isExpanded ? (
+                          <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-slate-600 dark:text-slate-400" />
+                        ) : (
+                          <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 text-slate-600 dark:text-slate-400" />
+                        )}
+                      </div>
+                    ) : (
+                      <div className="w-4 h-4 sm:w-6 sm:h-6 flex-shrink-0" />
+                    )}
+                    <div className={`p-1.5 sm:p-2 rounded-lg bg-gradient-to-r ${getNodeGradient()}`}>
+                      <div className="text-white">{getNodeIcon()}</div>
+                    </div>
+                    <div className="flex-1 text-left min-w-0">
+                      <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                        <span className="font-medium text-slate-900 dark:text-slate-100 text-sm sm:text-base truncate">
+                          {node.title}
+                        </span>
+                        {node.count && (
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-slate-100 dark:bg-slate-700 rounded-full flex-shrink-0"
+                          >
+                            {node.count}
+                          </Badge>
+                        )}
+                        {getSentimentBadge()}
+                      </div>
+                      {node.subtitle && (
+                        <div className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 truncate">
+                          {node.subtitle}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+          </div>
+
+          {hasChildren && (
+            <CollapsibleContent className="space-y-1 mt-1 sm:mt-2">
+              {node.children!.map((child) => renderTreeNode(child, depth + 1))}
+            </CollapsibleContent>
+          )}
+        </Collapsible>
+      </div>
     )
   }
 
-      return (
-      <div className="space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 space-y-2 sm:space-y-0">
-          <div>
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Conversation Tree</h3>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              {queryType === "group" ? `Group ${data.queryId}` : `User ${data.queryId}`}
-              {data.userName && ` (${data.userName})`}
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setExpandedNodes(expandedNodes.size > 0 ? new Set() : new Set(treeStructure.map(n => n.id)))}
-            className="w-full sm:w-auto"
-          >
-            {expandedNodes.size > 0 ? "Collapse All" : "Expand All"}
-          </Button>
-        </div>
+  const treeStructure = buildTreeStructure()
 
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-2 sm:p-4 bg-white dark:bg-gray-800">
-          <div className="space-y-1">
-            {treeStructure.map((node) => renderTreeNode(node))}
+  return (
+    <div className="space-y-3 sm:space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col xs:flex-row xs:items-center gap-2 sm:gap-3">
+          <Badge
+            variant="outline"
+            className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 w-fit text-xs sm:text-sm"
+          >
+            {queryType === "user" ? (
+              <>
+                <User className="w-3 h-3 mr-1" />
+                User Analysis
+              </>
+            ) : (
+              <>
+                <Users className="w-3 h-3 mr-1" />
+                Group Analysis
+              </>
+            )}
+          </Badge>
+          <div className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+            {data.conversations?.length || 0} messages • {treeStructure.length} top-level nodes
           </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            if (expandedNodes.size > 0) {
+              setExpandedNodes(new Set())
+            } else {
+              const allNodeIds = new Set<string>()
+              const collectNodeIds = (nodes: TreeNode[]) => {
+                nodes.forEach((node) => {
+                  if (node.children && node.children.length > 0) {
+                    allNodeIds.add(node.id)
+                    collectNodeIds(node.children)
+                  }
+                })
+              }
+              collectNodeIds(treeStructure)
+              setExpandedNodes(allNodeIds)
+            }
+          }}
+          className="rounded-lg text-xs sm:text-sm w-fit"
+        >
+          {expandedNodes.size > 0 ? "Collapse All" : "Expand All"}
+        </Button>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-2 sm:p-4">
+        <div className="space-y-1 sm:space-y-2 max-h-64 sm:max-h-96 overflow-y-auto">
+          {treeStructure.length > 0 ? (
+            treeStructure.map((node) => renderTreeNode(node))
+          ) : (
+            <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+              No data available. Please analyze a group or user to see conversation structure.
+            </div>
+          )}
         </div>
       </div>
-    )
+    </div>
+  )
 }
