@@ -5,15 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
 import { Input } from "./ui/input"
-import { Users, Search, Wallet, Calendar, CheckCircle2, User, TrendingUp, Zap } from "lucide-react"
+import { Users, Search, Wallet, Calendar, CheckCircle2, User, TrendingUp, Zap, MessageSquare } from "lucide-react"
 import { type User as UserType } from "../lib/api"
 
 interface UsersListProps {
   users: UserType[]
   onUserSelect: (user: UserType) => void
+  onViewTelegramActivity?: (user: UserType) => void
 }
 
-export function UsersList({ users, onUserSelect }: UsersListProps) {
+export function UsersList({ users, onUserSelect, onViewTelegramActivity }: UsersListProps) {
   const [searchTerm, setSearchTerm] = useState("")
 
   // Sort users by points, then by last activity
@@ -175,14 +176,27 @@ export function UsersList({ users, onUserSelect }: UsersListProps) {
                       <div className="text-2xl font-bold text-emerald-600">{completionRate}%</div>
                       <div className="text-xs text-slate-500">completion</div>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => onUserSelect(user)}
-                      className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-lg"
-                    >
-                      <User className="w-4 h-4 mr-2" />
-                      Analyze
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => onUserSelect(user)}
+                        className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white border-0 shadow-lg"
+                      >
+                        <User className="w-4 h-4 mr-2" />
+                        Analyze
+                      </Button>
+                      {onViewTelegramActivity && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => onViewTelegramActivity(user)}
+                          className="border-purple-300 text-purple-700 hover:bg-purple-50 shadow-sm"
+                        >
+                          <MessageSquare className="w-4 h-4 mr-2" />
+                          Telegram Activity
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

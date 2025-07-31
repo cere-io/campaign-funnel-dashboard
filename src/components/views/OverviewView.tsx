@@ -21,6 +21,7 @@ interface OverviewViewProps {
   funnelData?: FunnelData;
   activeUsersCount: number;
   users: User[];
+  onViewTelegramActivity?: (user: User) => void;
 }
 
 export function OverviewView({
@@ -29,6 +30,7 @@ export function OverviewView({
   isLoading,
   selectedCampaign,
   users,
+  onViewTelegramActivity,
 }: OverviewViewProps) {
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -265,6 +267,7 @@ export function OverviewView({
         onClose={handleModalClose}
         stage={modalState.stage}
         campaignId={selectedCampaign}
+        onViewTelegramActivity={onViewTelegramActivity}
       />
     </div>
   );

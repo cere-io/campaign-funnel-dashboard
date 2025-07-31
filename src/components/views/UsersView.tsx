@@ -8,6 +8,7 @@ interface UsersViewProps {
   isLoading: boolean;
   user: User;
   onSelect: (user: User | null) => void;
+  onViewTelegramActivity?: (user: User) => void;
   campaignId: string;
 }
 
@@ -16,6 +17,7 @@ export function UsersView({
   isLoading,
   user,
   onSelect,
+  onViewTelegramActivity,
   campaignId,
 }: UsersViewProps) {
   if (isLoading) {
@@ -34,6 +36,7 @@ export function UsersView({
         user={user}
         onBack={() => onSelect(null)}
         campaignId={campaignId}
+        onViewTelegramActivity={onViewTelegramActivity}
       />
     );
   }
@@ -49,7 +52,7 @@ export function UsersView({
         </p>
       </div>
 
-      <UsersList users={users} onUserSelect={handleUserSelect} />
+      <UsersList users={users} onUserSelect={handleUserSelect} onViewTelegramActivity={onViewTelegramActivity} />
     </div>
   );
 }

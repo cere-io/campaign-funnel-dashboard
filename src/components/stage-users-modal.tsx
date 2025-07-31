@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 import { Badge } from "./ui/badge"
 import { Input } from "./ui/input"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./ui/accordion"
-import { Users, Search, Trophy, User as UserIcon, Calendar, TrendingUp, Wallet, Brain, Play, Twitter, Clock, CheckCircle, XCircle } from "lucide-react"
+import { Users, Search, Trophy, User as UserIcon, Calendar, TrendingUp, Wallet, Brain, Play, Twitter, Clock, CheckCircle, XCircle, MessageSquare } from "lucide-react"
 import { type User } from '../lib/api';
 
 interface StageUsersModalProps {
@@ -15,15 +15,16 @@ interface StageUsersModalProps {
   stage: string
   campaignId: string
   users: User[]
+  onViewTelegramActivity?: (user: User) => void
 }
 
-export function StageUsersModal({ isOpen, onClose, stage, users, campaignId }: StageUsersModalProps) {
+export function StageUsersModal({ isOpen, onClose, stage, users, campaignId, onViewTelegramActivity }: StageUsersModalProps) {
   const [searchTerm, setSearchTerm] = useState("")
 
   // Filter users based on stage requirements
   const getFilteredUsersByStage = () => {
     if (!users) return []
-    
+
     switch (stage) {
       case "started":
         // Users Who Started DEX Swap - users with DEX task (regardless of completion)
@@ -46,7 +47,7 @@ export function StageUsersModal({ isOpen, onClose, stage, users, campaignId }: S
   }
 
   const stageUsers = getFilteredUsersByStage()
-  
+
   const filteredUsers = stageUsers.filter((user) =>
     user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.user?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -56,7 +57,7 @@ export function StageUsersModal({ isOpen, onClose, stage, users, campaignId }: S
     switch (stage) {
       case "started":
         return "Users Who Started DEX Swap"
-      case "connected":  
+      case "connected":
         return "Users Who Connected Wallet"
       case "completed":
         return "Users Who Completed Trade"
@@ -80,7 +81,7 @@ export function StageUsersModal({ isOpen, onClose, stage, users, campaignId }: S
 
   const getStatusBadge = (user: User) => {
     const dexTask = user.quests?.customTasks?.find((task: any) => task.subtype === "dex")
-    
+
     if (!dexTask) {
       return (
         <Badge variant="outline" className="text-xs">
@@ -88,7 +89,7 @@ export function StageUsersModal({ isOpen, onClose, stage, users, campaignId }: S
         </Badge>
       )
     }
-    
+
     return (
       <Badge variant={dexTask.completed ? "default" : "secondary"} className="text-xs">
         {dexTask.completed ? "Swap Completed" : "Swap Started"}
@@ -99,14 +100,14 @@ export function StageUsersModal({ isOpen, onClose, stage, users, campaignId }: S
   const getCompletedQuestsByType = (user: User) => {
     const quests = user.quests
     if (!quests) return 0
-    
+
     const completedCounts = {
       quiz: quests.quizTasks?.filter((task: any) => task.completed).length || 0,
       video: quests.videoTasks?.filter((task: any) => task.completed).length || 0,
       custom: quests.customTasks?.filter((task: any) => task.completed).length || 0,
       social: quests.socialTasks?.filter((task: any) => task.completed).length || 0,
     }
-    
+
     return Object.values(completedCounts).reduce((sum, count) => sum + count, 0)
   }
 
@@ -383,7 +384,7 @@ export function StageUsersModal({ isOpen, onClose, stage, users, campaignId }: S
                           </div>
                         </AccordionTrigger>
                         <AccordionContent className="pt-0">
-                          <div className="pl-14 pr-4 pb-4">
+                          <div className="pl-14 pr-4 pb-4 space-y-4">
                             <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4">
                               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                                 <Trophy className="w-4 h-4 text-amber-500" />
@@ -391,6 +392,22 @@ export function StageUsersModal({ isOpen, onClose, stage, users, campaignId }: S
                               </h3>
                               {renderQuestDetails(user)}
                             </div>
+
+                            {/* Telegram Activity Button */}
+                            {onViewTelegramActivity && (
+                              <div className="flex justify-end">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onViewTelegramActivity(user);
+                                  }}
+                                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors"
+                                >
+                                  <MessageSquare className="w-4 h-4" />
+                                  Telegram Activity
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </AccordionContent>
                       </AccordionItem>

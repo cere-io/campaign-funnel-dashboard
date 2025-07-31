@@ -43,6 +43,12 @@ export default function CommunityIntelligenceDashboard() {
   >("dashboard");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [activeView, setActiveView] = useState("overview");
+  const [aiAnalysisInitialData, setAiAnalysisInitialData] = useState<{
+    groupId?: string;
+    userId?: string;
+    userName?: string;
+    activeTab?: "group" | "user";
+  } | undefined>(undefined);
 
   // Track if this is the first render to avoid resetting on initial load
   const isFirstRender = useRef(true);
@@ -297,6 +303,17 @@ export default function CommunityIntelligenceDashboard() {
     setSelectedUser(user)
   }
 
+  const handleViewTelegramActivity = (user: User) => {
+    // Set initial data for AI analysis with username
+    setAiAnalysisInitialData({
+      groupId: "1", // Default group ID as mentioned in the requirement
+      userName: user.username || user.user, // Use username from user object
+      activeTab: "user"
+    });
+    // Navigate to AI analysis view
+    setActiveView("ai-analysis");
+  };
+
   // Show loader only if authenticated and still loading organizations
   const shouldShowLoader = isAuthenticated && isLoadingOrganizations;
 
@@ -350,6 +367,7 @@ export default function CommunityIntelligenceDashboard() {
           campaignId={selectedCampaign}
           user={selectedUser}
           onBack={() => setSelectedView("dashboard")}
+          onViewTelegramActivity={handleViewTelegramActivity}
         />
       );
     }
@@ -366,6 +384,7 @@ export default function CommunityIntelligenceDashboard() {
             dateRange={dateRange}
             isLoading={isLoading}
             users={users}
+            onViewTelegramActivity={handleViewTelegramActivity}
           />
         );
 
@@ -375,12 +394,13 @@ export default function CommunityIntelligenceDashboard() {
             users={users}
             user={selectedUser}
             onSelect={handleSelectUser}
+            onViewTelegramActivity={handleViewTelegramActivity}
             isLoading={isLoading}
             campaignId={selectedCampaign}
           />
         );
       case "ai-analysis":
-        return <AIAnalysisView isAuthenticated={isAuthenticated} />;
+        return <AIAnalysisView isAuthenticated={isAuthenticated} initialData={aiAnalysisInitialData} />;
       default:
         return (
           <OverviewView

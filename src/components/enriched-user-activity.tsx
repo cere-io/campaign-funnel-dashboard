@@ -15,6 +15,7 @@ import {
   Target,
   TrendingUp,
   ArrowLeft,
+  MessageSquare,
 } from "lucide-react";
 import {
   type User as UserType,
@@ -25,17 +26,20 @@ interface EnrichedUserActivityProps {
   user: User;
   onBack: () => void;
   campaignId: string;
+  onViewTelegramActivity?: (user: User) => void;
 }
 
 export function EnrichedUserActivity({
   user,
   onBack,
+  campaignId,
+  onViewTelegramActivity,
 }: EnrichedUserActivityProps) {
 
   // Extract quest activities from user data
   const getAllQuests = (user: UserType) => {
     if (!user.quests) return [];
-    
+
     const allQuests = [
       ...(user.quests.quizTasks || []).map(task => ({
         id: task.id,
@@ -78,7 +82,7 @@ export function EnrichedUserActivity({
         subtype: 'dex'
       }))
     ];
-    
+
     return allQuests;
   };
 
@@ -176,6 +180,19 @@ export function EnrichedUserActivity({
             </p>
           </div>
         </div>
+
+        {/* Telegram Activity Button */}
+        {onViewTelegramActivity && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onViewTelegramActivity(user)}
+            className="border-purple-300 text-purple-700 hover:bg-purple-50"
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Telegram Activity
+          </Button>
+        )}
       </div>
 
       {/* Summary Stats */}
@@ -362,7 +379,7 @@ export function EnrichedUserActivity({
                   );
                 })
             )}
-            
+
             {/* User Stats Summary */}
             {user.external_wallet_address && (
               <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">

@@ -31,12 +31,14 @@ interface UserActivityDetailProps {
   };
   campaignId: string;
   onBack: () => void;
+  onViewTelegramActivity?: (user: { user: string; username?: string }) => void;
 }
 
 export function UserActivityDetail({
   user,
   campaignId,
   onBack,
+  onViewTelegramActivity,
 }: UserActivityDetailProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [activities, setActivities] = useState<QuestActivitiesMap>({});
@@ -239,6 +241,19 @@ export function UserActivityDetail({
             </div>
           </div>
         </div>
+
+        {/* Telegram Activity Button */}
+        {onViewTelegramActivity && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onViewTelegramActivity(user)}
+            className="border-purple-300 text-purple-700 hover:bg-purple-50"
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Telegram Activity
+          </Button>
+        )}
       </div>
 
       {/* Back Button and User Info */}

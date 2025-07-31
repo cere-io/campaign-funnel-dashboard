@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Button } from "../ui/button";
@@ -18,12 +18,23 @@ import { TopicTree } from "../topic-tree";
 
 interface AIAnalysisViewProps {
   isAuthenticated: boolean;
+  initialData?: {
+    groupId?: string;
+    userId?: string;
+    userName?: string;
+    activeTab?: "group" | "user";
+  };
 }
 
-export function AIAnalysisView({ isAuthenticated }: AIAnalysisViewProps) {
-  // State
-  const [groupId, setGroupId] = useState("1");
-  const [userId, setUserId] = useState("475644326");
+export function AIAnalysisView({ isAuthenticated, initialData }: AIAnalysisViewProps) {
+  // State - Initialize with initialData if provided
+  const [groupId, setGroupId] = useState(initialData?.groupId || "1");
+  const [userId, setUserId] = useState(initialData?.userId || "475644326");
+  const [userName, setUserName] = useState(initialData?.userName || "");
+  const [searchType, setSearchType] = useState<"userId" | "userName">(
+    initialData?.userName ? "userName" : "userId"
+  );
+  const [activeTab, setActiveTab] = useState<"group" | "user">(initialData?.activeTab || "group");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,8 +42,8 @@ export function AIAnalysisView({ isAuthenticated }: AIAnalysisViewProps) {
   const [conversationData, setConversationData] = useState<ConversationTreeData | null>(null);
   const [userDetails, setUserDetails] = useState<UserDetails | null>(null);
 
-  // Determine query type based on whether we have user details
-  const queryType: "group" | "user" = userDetails ? "user" : "group";
+  // Determine query type based on whether we have user details or active tab
+  const queryType: "group" | "user" = activeTab;
 
   // Fetch conversation data
   const fetchConversationData = async (type: "group" | "user") => {
@@ -40,9 +51,19 @@ export function AIAnalysisView({ isAuthenticated }: AIAnalysisViewProps) {
       setError("Please enter a group ID");
       return;
     }
-    if (type === "user" && (!groupId.trim() || !userId.trim())) {
-      setError("Please enter both group ID and user ID");
-      return;
+    if (type === "user") {
+      if (!groupId.trim()) {
+        setError("Please enter a group ID");
+        return;
+      }
+      if (searchType === "userId" && !userId.trim()) {
+        setError("Please enter a user ID");
+        return;
+      }
+      if (searchType === "userName" && !userName.trim()) {
+        setError("Please enter a username");
+        return;
+      }
     }
 
     setLoading(true);
@@ -54,16 +75,21 @@ export function AIAnalysisView({ isAuthenticated }: AIAnalysisViewProps) {
         setConversationData(treeData);
         setUserDetails(null);
       } else {
-        const userDetailsData = await api.getUserDetails(groupId, userId);
-        
+        let userDetailsData: UserDetails;
+        if (searchType === "userName") {
+          userDetailsData = await api.getUserDetailsByUsername(groupId, userName);
+        } else {
+          userDetailsData = await api.getUserDetails(groupId, userId);
+        }
+
         // Create ConversationTreeData from user details for consistency
         const userConversationData: ConversationTreeData = {
-          queryId: `user_${userId}`,
+          queryId: searchType === "userName" ? `user_${userName}` : `user_${userId}`,
           userName: userDetailsData.user_name || userDetailsData.userName,
           conversations: userDetailsData.conversations || [],
           metadata: {
             totalMessages: userDetailsData.conversations?.length || 0,
-            participants: [userDetailsData.user_name || userDetailsData.userName || `User ${userId}`],
+            participants: [userDetailsData.user_name || userDetailsData.userName || (searchType === "userName" ? userName : `User ${userId}`)],
             lastUpdated: new Date().toISOString(),
           },
           stats: {
@@ -96,6 +122,14 @@ export function AIAnalysisView({ isAuthenticated }: AIAnalysisViewProps) {
       fetchConversationData("user");
     }
   };
+
+  // Auto-trigger search when coming from "Telegram Activity" button
+  useEffect(() => {
+    if (initialData && initialData.activeTab === "user" && initialData.userName) {
+      // Auto-trigger the search
+      fetchConversationData("user");
+    }
+  }, [initialData]);
 
 
 
@@ -134,7 +168,7 @@ export function AIAnalysisView({ isAuthenticated }: AIAnalysisViewProps) {
         <CardContent className="space-y-4">
           <div className="flex gap-4">
             <div className="flex-1">
-              <Tabs defaultValue="group" className="w-full">
+              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "group" | "user")} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="group">Group Analysis</TabsTrigger>
               <TabsTrigger value="user">User Deep Dive</TabsTrigger>
@@ -166,35 +200,74 @@ export function AIAnalysisView({ isAuthenticated }: AIAnalysisViewProps) {
             </TabsContent>
 
                 <TabsContent value="user" className="space-y-4 mt-4">
-                  <div className="flex gap-2">
-                <Input
-                  placeholder="Group ID (e.g., 1)..."
-                  value={groupId}
-                  onChange={(e) => setGroupId(e.target.value)}
-                      className="flex-1"
-                />
-                <Input
-                  placeholder="User ID (e.g., 475644326)..."
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                      onKeyPress={(e) => e.key === "Enter" && handleAnalyze()}
-                      className="flex-1"
-                />
-                    <Button onClick={handleAnalyze} disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <div className="space-y-3">
+                    {/* Search Type Toggle - Hidden for now */}
+                    {/*
+                    <div className="flex gap-2">
+                      <Button
+                        variant={searchType === "userId" ? "default" : "outline"}
+                        onClick={() => setSearchType("userId")}
+                        size="sm"
+                        className="flex-1"
+                      >
+                        Search by User ID
+                      </Button>
+                      <Button
+                        variant={searchType === "userName" ? "default" : "outline"}
+                        onClick={() => setSearchType("userName")}
+                        size="sm"
+                        className="flex-1"
+                      >
+                        Search by Username
+                      </Button>
+                    </div>
+                    */}
+
+                    {/* Input Fields */}
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Group ID (e.g., 1)..."
+                        value={groupId}
+                        onChange={(e) => setGroupId(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Input
+                        placeholder="User ID or Username (e.g., 475644326 or UserName)..."
+                        value={searchType === "userId" ? userId : userName}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Auto-detect if input is all digits (User ID) or contains letters (Username)
+                          const isAllDigits = /^\d+$/.test(value.trim());
+                          if (isAllDigits) {
+                            setSearchType("userId");
+                            setUserId(value);
+                            setUserName("");
+                          } else {
+                            setSearchType("userName");
+                            setUserName(value);
+                            setUserId("");
+                          }
+                        }}
+                        onKeyPress={(e) => e.key === "Enter" && handleAnalyze()}
+                        className="flex-1"
+                      />
+                    </div>
+
+                    <Button onClick={handleAnalyze} disabled={loading} className="w-full">
+                      {loading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
                           Analyzing...
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4 mr-2" />
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4 mr-2" />
                           Analyze User
-                  </>
-                )}
-              </Button>
+                        </>
+                      )}
+                    </Button>
                   </div>
-            </TabsContent>
+                </TabsContent>
           </Tabs>
             </div>
           </div>
@@ -209,7 +282,7 @@ export function AIAnalysisView({ isAuthenticated }: AIAnalysisViewProps) {
               <MessageSquare className="w-5 h-5 text-blue-600" />
                       <div>
                 <div className="text-2xl font-bold">
-                  {(conversationData?.conversations && Array.isArray(conversationData.conversations) ? 
+                  {(conversationData?.conversations && Array.isArray(conversationData.conversations) ?
                     conversationData.conversations.length : 0) ||
                    userDetails?.total_messages ||
                    userDetails?.messages_by_topics?.reduce((sum, topic) => sum + topic.message_count, 0) ||
@@ -252,7 +325,7 @@ export function AIAnalysisView({ isAuthenticated }: AIAnalysisViewProps) {
                 <div>
                 <div className="text-2xl font-bold">
                   {userDetails?.unique_conversations_participated ||
-                   (conversationData?.conversations && Array.isArray(conversationData.conversations) ? 
+                   (conversationData?.conversations && Array.isArray(conversationData.conversations) ?
                      new Set(conversationData.conversations.map(c => c.conversationId)).size : 0)}
                 </div>
                 <div className="text-sm text-gray-600">Conversations</div>

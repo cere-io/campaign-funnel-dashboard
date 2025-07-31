@@ -640,111 +640,150 @@ export const api = {
       const data = await response.json();
       logger.debug("User details fetched successfully", data);
 
-      // Extract real data structure from the actual API response
-      const userData = data.result?.data?.data || {};
-
-      // Process sentiment breakdown and extract all messages from messages_by_topics
-      const sentimentBreakdown: Record<string, number> = {};
-      const allMessages: ConversationNode[] = [];
-
-      if (userData.messages_by_topics && Array.isArray(userData.messages_by_topics)) {
-        userData.messages_by_topics.forEach((topic: any) => {
-          if (topic.messages && Array.isArray(topic.messages)) {
-            topic.messages.forEach((message: any) => {
-              const sentiment = message.sentiment || 'neutral';
-              sentimentBreakdown[sentiment] = (sentimentBreakdown[sentiment] || 0) + 1;
-
-              // Create conversation node like in conversation-dashboard
-              allMessages.push({
-                id: message.message_id?.toString() || `msg_${Date.now()}_${Math.random()}`,
-                message: message.content || message.message || "No content",
-                timestamp: message.timestamp || new Date().toISOString(),
-                user: userData.user_name || `User ${userId}`,
-                topic: topic.topic_name || "Unknown Topic",
-                sentiment: message.sentiment,
-                conversationId: message.conversation_id?.toString(),
-                replyToMessageId: message.reply_to_message_id?.toString(),
-              });
-            });
-          }
-        });
-      }
-
-      // Sort messages by timestamp (most recent first)
-      allMessages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-      return {
-        // Old structure for compatibility
-        userId,
-        userName: userData.user_name || "Unknown User",
-        groupId,
-        conversations: allMessages,
-        statistics: {
-          messageCount: parseInt(userData.total_messages || "0"),
-          topicsEngaged: parseInt(userData.unique_topics_participated || "0"),
-          sentimentBreakdown,
-        },
-        // New real data structure matching your API response
-        user_id: userData.user_id,
-        user_name: userData.user_name,
-        group_id: userData.group_id,
-        total_messages: userData.total_messages,
-        total_conversations: userData.total_conversations,
-        unique_topics_participated: userData.unique_topics_participated,
-        unique_conversations_participated: userData.unique_conversations_participated,
-        average_message_length: userData.average_message_length,
-        last_activity: userData.last_activity,
-        user_created_at: userData.user_created_at,
-        user_updated_at: userData.user_updated_at,
-        version_created: userData.version_created,
-        version_updated: userData.version_updated,
-        messages_by_topics: userData.messages_by_topics || [],
-        recent_messages: userData.recent_messages || [],
-        conversation_ids: userData.conversation_ids,
-        response_pattern: userData.response_pattern,
-        total_context_windows: userData.total_context_windows,
-        total_relationships: userData.total_relationships,
-        relationship_details: userData.relationship_details || [],
-        context_window_details: userData.context_window_details || [],
-        emoji_usage: userData.emoji_usage,
-      };
+      return this.processUserDetailsResponse(data, userId, groupId);
     } catch (error) {
       logger.error("Error fetching user details:", error);
-      return {
-        userId,
-        userName: "Unknown User",
-        groupId,
-        conversations: [],
-        statistics: {
-          messageCount: 0,
-          topicsEngaged: 0,
-          sentimentBreakdown: {},
-        },
-        // Return empty data structure on error
-        user_id: userId,
-        user_name: "Unknown User",
-        group_id: groupId,
-        total_messages: "0",
-        total_conversations: "0",
-        unique_topics_participated: "0",
-        unique_conversations_participated: "0",
-        average_message_length: "0",
-        last_activity: "",
-        user_created_at: "",
-        user_updated_at: "",
-        version_created: "",
-        version_updated: "",
-        messages_by_topics: [],
-        recent_messages: [],
-        conversation_ids: "",
-        response_pattern: "unknown",
-        total_context_windows: "0",
-        total_relationships: "0",
-        relationship_details: [],
-        context_window_details: [],
-        emoji_usage: null,
-      };
+      return this.createEmptyUserDetails(userId, groupId);
     }
+  },
+
+  async getUserDetailsByUsername(groupId: string, userName: string): Promise<UserDetails> {
+    logger.debug("Fetching user details by username", { groupId, userName });
+
+    try {
+      const response = await fetch(
+        "https://ai-rule.stage.cere.io/rule/data-service/2599/query/get_user_details",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            params: {
+              groupId: groupId,
+              userName: userName,
+              userId: 0,
+            },
+          }),
+        },
+      );
+
+      const data = await response.json();
+      logger.debug("User details by username fetched successfully", data);
+
+      return this.processUserDetailsResponse(data, "0", groupId);
+    } catch (error) {
+      logger.error("Error fetching user details by username:", error);
+      return this.createEmptyUserDetails("0", groupId);
+    }
+  },
+
+  processUserDetailsResponse(data: any, userId: string, groupId: string): UserDetails {
+    // Extract real data structure from the actual API response
+    const userData = data.result?.data?.data || {};
+
+    // Process sentiment breakdown and extract all messages from messages_by_topics
+    const sentimentBreakdown: Record<string, number> = {};
+    const allMessages: ConversationNode[] = [];
+
+    if (userData.messages_by_topics && Array.isArray(userData.messages_by_topics)) {
+      userData.messages_by_topics.forEach((topic: any) => {
+        if (topic.messages && Array.isArray(topic.messages)) {
+          topic.messages.forEach((message: any) => {
+            const sentiment = message.sentiment || 'neutral';
+            sentimentBreakdown[sentiment] = (sentimentBreakdown[sentiment] || 0) + 1;
+
+            // Create conversation node like in conversation-dashboard
+            allMessages.push({
+              id: message.message_id?.toString() || `msg_${Date.now()}_${Math.random()}`,
+              message: message.content || message.message || "No content",
+              timestamp: message.timestamp || new Date().toISOString(),
+              user: userData.user_name || `User ${userId}`,
+              topic: topic.topic_name || "Unknown Topic",
+              sentiment: message.sentiment,
+              conversationId: message.conversation_id?.toString(),
+              replyToMessageId: message.reply_to_message_id?.toString(),
+            });
+          });
+        }
+      });
+    }
+
+    // Sort messages by timestamp (most recent first)
+    allMessages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    return {
+      // Old structure for compatibility
+      userId,
+      userName: userData.user_name || "Unknown User",
+      groupId,
+      conversations: allMessages,
+      statistics: {
+        messageCount: parseInt(userData.total_messages || "0"),
+        topicsEngaged: parseInt(userData.unique_topics_participated || "0"),
+        sentimentBreakdown,
+      },
+      // New real data structure matching your API response
+      user_id: userData.user_id,
+      user_name: userData.user_name,
+      group_id: userData.group_id,
+      total_messages: userData.total_messages,
+      total_conversations: userData.total_conversations,
+      unique_topics_participated: userData.unique_topics_participated,
+      unique_conversations_participated: userData.unique_conversations_participated,
+      average_message_length: userData.average_message_length,
+      last_activity: userData.last_activity,
+      user_created_at: userData.user_created_at,
+      user_updated_at: userData.user_updated_at,
+      version_created: userData.version_created,
+      version_updated: userData.version_updated,
+      messages_by_topics: userData.messages_by_topics || [],
+      recent_messages: userData.recent_messages || [],
+      conversation_ids: userData.conversation_ids,
+      response_pattern: userData.response_pattern,
+      total_context_windows: userData.total_context_windows,
+      total_relationships: userData.total_relationships,
+      relationship_details: userData.relationship_details || [],
+      context_window_details: userData.context_window_details || [],
+      emoji_usage: userData.emoji_usage,
+    };
+  },
+
+  createEmptyUserDetails(userId: string, groupId: string): UserDetails {
+    return {
+      userId,
+      userName: "Unknown User",
+      groupId,
+      conversations: [],
+      statistics: {
+        messageCount: 0,
+        topicsEngaged: 0,
+        sentimentBreakdown: {},
+      },
+      // Return empty data structure on error
+      user_id: userId,
+      user_name: "Unknown User",
+      group_id: groupId,
+      total_messages: "0",
+      total_conversations: "0",
+      unique_topics_participated: "0",
+      unique_conversations_participated: "0",
+      average_message_length: "0",
+      last_activity: "",
+      user_created_at: "",
+      user_updated_at: "",
+      version_created: "",
+      version_updated: "",
+      messages_by_topics: [],
+      recent_messages: [],
+      conversation_ids: "",
+      response_pattern: "unknown",
+      total_context_windows: "0",
+      total_relationships: "0",
+      relationship_details: [],
+      context_window_details: [],
+      emoji_usage: null,
+    };
   },
 };
 
