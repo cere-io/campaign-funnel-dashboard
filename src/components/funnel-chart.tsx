@@ -26,6 +26,7 @@ export function FunnelChart({ data, onStageClick }: FunnelChartProps) {
       count: data ? data?.startedDexSwap : 0,
       percentage: 100,
       color: "#3b82f6",
+      key: "started",
     },
     ...(!env.HIDE_CONNECT_WALLET_METRICS
         ? [
@@ -36,6 +37,7 @@ export function FunnelChart({ data, onStageClick }: FunnelChartProps) {
                 ? (data?.connectedCereWallet / data?.startedDexSwap) * 100
                 : 0,
             color: "#8b5cf6",
+            key: "connected",
           },
         ]
         : []),
@@ -46,8 +48,11 @@ export function FunnelChart({ data, onStageClick }: FunnelChartProps) {
           ? (data?.completedTrade / data?.startedDexSwap) * 100
           : 0,
       color: "#10b981",
+      key: "completed",
     },
   ];
+
+
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -108,7 +113,7 @@ export function FunnelChart({ data, onStageClick }: FunnelChartProps) {
           <Bar
             dataKey="count"
             radius={[4, 4, 0, 0]}
-            onClick={(data: any) => onStageClick?.(data.stage, data.count)}
+            onClick={(data: any) => onStageClick?.(data.key, data.count)}
             style={{ cursor: "pointer" }}
           >
             {funnelData.map((entry, index) => (

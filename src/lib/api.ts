@@ -81,6 +81,40 @@ export interface User {
   points: number;
   quests_completed: number;
   last_activity: string;
+  external_wallet_address?: string;
+  invitees?: string[];
+  quests?: {
+    quizTasks?: Array<{
+      id: string;
+      title: string;
+      completed: boolean;
+      questions?: any[];
+    }>;
+    videoTasks?: Array<{
+      id: string;
+      title: string;
+      type: string;
+      completed: boolean;
+      points: number;
+    }>;
+    socialTasks?: Array<{
+      id: string;
+      completed: boolean;
+    }>;
+    customTasks?: Array<{
+      id: string;
+      title: string;
+      type: string;
+      subtype?: string;
+      completed: boolean;
+      points: number;
+    }>;
+    dexTasks?: Array<{
+      id: string;
+      completed: boolean;
+    }>;
+    referralTask?: any;
+  };
 }
 
 export type QuizPayload = {
@@ -133,6 +167,111 @@ export type QuestActivity = {
 };
 
 export type QuestActivitiesMap = Record<string, QuestActivity>;
+
+// AI Analysis Types
+export interface ConversationNode {
+  id: string;
+  message: string;
+  timestamp: string;
+  user: string;
+  topic: string;
+  sentiment?: string;
+  conversationId?: string;
+  replyToMessageId?: string | null;
+}
+
+export interface TreeUser {
+  id: number;
+  name: string;
+  messageIds: number[];
+  lastActivity: string;
+  communicationStyle: {
+    topTopics: number[];
+    emojiUsage: number;
+    responsePattern: string;
+    averageMessageLength: number;
+  };
+  topicParticipation: Record<string, number>;
+  activeConversations: any[];
+  recentInteractions: Record<string, any>;
+}
+
+export interface ConversationTreeData {
+  queryId?: string;
+  userName?: string;
+  conversations?: ConversationNode[];
+  metadata?: any;
+  // New real data structure
+  stats?: {
+    totalUsers: number;
+    totalTopics: number;
+    totalMessages: number;
+    lastProcessedTime: string;
+    activeConversations: number;
+    activeContextWindows: number;
+    trackedRelationships: number;
+  };
+  users?: Record<string, TreeUser>;
+}
+
+export interface MessagesByTopic {
+  topic_id: number;
+  topic_name: string;
+  message_count: number;
+  messages: Array<{
+    message_id: number;
+    content: string;
+    timestamp: string;
+    sentiment: string;
+    toxicity: any;
+    conversation_id: string;
+    reply_to_message_id: any;
+  }>;
+}
+
+export interface RecentMessage {
+  message_id: number;
+  content: string;
+  timestamp: string;
+  topic_name: string;
+  sentiment: string;
+  conversation_id: string;
+}
+
+export interface UserDetails {
+  userId?: string;
+  userName?: string;
+  groupId?: string;
+  conversations?: ConversationNode[];
+  statistics?: {
+    messageCount: number;
+    topicsEngaged: number;
+    sentimentBreakdown: Record<string, number>;
+  };
+  // New real data structure matching your API response exactly
+  user_id?: string;
+  user_name?: string;
+  group_id?: string;
+  total_messages?: string;
+  total_conversations?: string;
+  unique_topics_participated?: string;
+  unique_conversations_participated?: string;
+  average_message_length?: string;
+  last_activity?: string;
+  user_created_at?: string;
+  user_updated_at?: string;
+  version_created?: string;
+  version_updated?: string;
+  messages_by_topics?: MessagesByTopic[];
+  recent_messages?: RecentMessage[];
+  conversation_ids?: string;
+  response_pattern?: string;
+  total_context_windows?: string;
+  total_relationships?: string;
+  relationship_details?: any[];
+  context_window_details?: any[];
+  emoji_usage?: any;
+}
 
 type GetUserActivitiesResponse = {
   result: {
@@ -366,6 +505,169 @@ export const api = {
     } catch (error) {
       logger.error("Error fetching user activity:", error);
       return {};
+    }
+  },
+
+  // AI Analysis APIs
+  async getLatestTree(groupId: string): Promise<ConversationTreeData> {
+    logger.debug("Fetching latest conversation tree", { groupId });
+
+    try {
+      const response = await fetch(
+        "https://ai-rule.stage.cere.io/rule/data-service/2599/query/get_latest_tree",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            params: {
+              groupId: groupId,
+            },
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      logger.debug("Latest tree data fetched successfully", data);
+
+      // Extract real data structure for group analysis
+      const treeBlob = data.result?.data?.data?.tree_blob || {};
+      
+      return {
+        queryId: `group_${groupId}`,
+        stats: treeBlob.stats || {},
+        users: treeBlob.users || {},
+        metadata: data.metadata,
+        // Fallback for old structure
+        conversations: [],
+      };
+    } catch (error) {
+      logger.error("Error fetching latest tree:", error);
+      return {
+        queryId: groupId,
+        conversations: [],
+        metadata: null,
+      };
+    }
+  },
+
+  async getUserDetails(groupId: string, userId: string): Promise<UserDetails> {
+    logger.debug("Fetching user details", { groupId, userId });
+
+    try {
+      const response = await fetch(
+        "https://ai-rule.stage.cere.io/rule/data-service/2599/query/get_user_details",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            params: {
+              groupId: groupId,
+              userId: parseInt(userId, 10),
+            },
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      logger.debug("User details fetched successfully", data);
+
+      // Extract real data structure from the actual API response
+      const userData = data.result?.data?.data || {};
+      
+      // Process sentiment breakdown from messages_by_topics
+      const sentimentBreakdown: Record<string, number> = {};
+      if (userData.messages_by_topics) {
+        userData.messages_by_topics.forEach((topic: any) => {
+          topic.messages?.forEach((message: any) => {
+            const sentiment = message.sentiment || 'neutral';
+            sentimentBreakdown[sentiment] = (sentimentBreakdown[sentiment] || 0) + 1;
+          });
+        });
+      }
+      
+      return {
+        // Old structure for compatibility
+        userId,
+        userName: userData.user_name || "Unknown User",
+        groupId,
+        conversations: [],
+        statistics: {
+          messageCount: parseInt(userData.total_messages || "0"),
+          topicsEngaged: parseInt(userData.unique_topics_participated || "0"),
+          sentimentBreakdown,
+        },
+        // New real data structure matching your API response
+        user_id: userData.user_id,
+        user_name: userData.user_name,
+        group_id: userData.group_id,
+        total_messages: userData.total_messages,
+        total_conversations: userData.total_conversations,
+        unique_topics_participated: userData.unique_topics_participated,
+        unique_conversations_participated: userData.unique_conversations_participated,
+        average_message_length: userData.average_message_length,
+        last_activity: userData.last_activity,
+        user_created_at: userData.user_created_at,
+        user_updated_at: userData.user_updated_at,
+        version_created: userData.version_created,
+        version_updated: userData.version_updated,
+        messages_by_topics: userData.messages_by_topics || [],
+        recent_messages: userData.recent_messages || [],
+        conversation_ids: userData.conversation_ids,
+        response_pattern: userData.response_pattern,
+        total_context_windows: userData.total_context_windows,
+        total_relationships: userData.total_relationships,
+        relationship_details: userData.relationship_details || [],
+        context_window_details: userData.context_window_details || [],
+        emoji_usage: userData.emoji_usage,
+      };
+    } catch (error) {
+      logger.error("Error fetching user details:", error);
+      return {
+        userId,
+        userName: "Unknown User",
+        groupId,
+        conversations: [],
+        statistics: {
+          messageCount: 0,
+          topicsEngaged: 0,
+          sentimentBreakdown: {},
+        },
+        // Return empty data structure on error
+        user_id: userId,
+        user_name: "Unknown User",
+        group_id: groupId,
+        total_messages: "0",
+        total_conversations: "0",
+        unique_topics_participated: "0",
+        unique_conversations_participated: "0",
+        average_message_length: "0",
+        last_activity: "",
+        user_created_at: "",
+        user_updated_at: "",
+        version_created: "",
+        version_updated: "",
+        messages_by_topics: [],
+        recent_messages: [],
+        conversation_ids: "",
+        response_pattern: "unknown",
+        total_context_windows: "0",
+        total_relationships: "0",
+        relationship_details: [],
+        context_window_details: [],
+        emoji_usage: null,
+      };
     }
   },
 };
