@@ -11,9 +11,10 @@ interface TrendChartProps {
 }
 
 export function TrendChart({ data }: TrendChartProps) {
-  // Transform the API data into chart format
+    // Transform the API data into chart format
   const transformTrendData = () => {
-    if (!data || !data.startedDexSwap) {
+    if (!data || !data.startedDexSwap || data.startedDexSwap.length === 0) {
+      console.log("📊 TrendChart: No data available, using fallback")
       // Fallback mock data if no real data available
       return [
         { date: "Jul 18", started: 2, connected: 0, completed: 2 },
@@ -25,6 +26,8 @@ export function TrendChart({ data }: TrendChartProps) {
         { date: "Jul 24", started: 2, connected: 0, completed: 0 },
       ]
     }
+
+    console.log("📊 TrendChart: Using real data with", data.startedDexSwap.length, "data points")
 
     // Create a map of all dates from all datasets
     const dateMap = new Map<string, { started: number; connected: number; completed: number }>()
@@ -50,9 +53,12 @@ export function TrendChart({ data }: TrendChartProps) {
     })
 
     // Convert to array and sort by date
-    return Array.from(dateMap.entries())
+    const result = Array.from(dateMap.entries())
       .map(([date, values]) => ({ date, ...values }))
       .sort((a, b) => new Date(a.date + " 2025").getTime() - new Date(b.date + " 2025").getTime())
+
+    console.log("📊 TrendChart: Transformed", result.length, "trend points")
+    return result
   }
 
   const trendData = transformTrendData()

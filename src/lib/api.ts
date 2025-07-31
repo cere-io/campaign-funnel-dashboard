@@ -399,6 +399,58 @@ export const api = {
       return [];
     }
   },
+
+  // Get ALL users without date filtering (for cumulative charts)
+  async getAllUsers({
+    organizationId,
+    campaignId,
+  }: {
+    campaignId: string;
+    organizationId: string;
+  }): Promise<User[]> {
+    try {
+      console.log("📡 API getAllUsers called (no date filtering):", {
+        campaign_id: campaignId,
+        organization_id: organizationId,
+      });
+
+      const params: any = {
+        campaign_id: campaignId,
+        organization_id: organizationId,
+        account_id: "6R44Eo6brL3YMMtFuocjgdCN9REzpHHWCGS5AVh49btFN13J",
+        // No date_from/date_to = get ALL users
+      };
+
+      console.log("getAllUsers API params:", params);
+
+      const response = await fetch(
+        `${env.RULE_SERVICE_API_URL}/data-service/${env.DATA_SERVICE_ID}/query/get_leaderboard_for_funnel`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            params,
+          }),
+        },
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("📊 getAllUsers API response - Users count:", data.result?.data?.data?.users?.length || 0);
+
+      const users = data.result.data.data.users;
+      return users;
+    } catch (error) {
+      logger.error("Error fetching ALL users data:", error);
+      return [];
+    }
+  },
+
   // Funnel Data
   async getFunnelData({
     campaignId,

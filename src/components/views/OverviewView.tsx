@@ -21,6 +21,7 @@ interface OverviewViewProps {
   funnelData?: FunnelData;
   activeUsersCount: number;
   users: User[];
+  allUsers: User[]; // All users for cumulative chart
   onViewTelegramActivity?: (user: User) => void;
 }
 
@@ -29,7 +30,9 @@ export function OverviewView({
   funnelData,
   isLoading,
   selectedCampaign,
+  dateRange,
   users,
+  allUsers,
   onViewTelegramActivity,
 }: OverviewViewProps) {
   const [modalState, setModalState] = useState<{
@@ -62,7 +65,7 @@ export function OverviewView({
   // Calculate metrics from user data (same logic as StageUsersModal)
   const getUsersForStage = (stage: string) => {
     if (!users) return []
-    
+
     switch (stage) {
       case "started":
         // Users Who Started DEX Swap - users with DEX task (regardless of completion)
@@ -88,9 +91,18 @@ export function OverviewView({
   const connectedWalletUsers = getUsersForStage("connected")
   const completedTradeUsers = getUsersForStage("completed")
 
-  // Calculate trends data based on user activity dates
+  console.log("📊 REAL DATA ANALYTICS")
+  console.log(`Selected period: ${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`)
+  console.log("Filtered users (for tables):", users.length)
+  console.log("All users (for chart):", allUsers.length)
+  console.log("Started DEX users:", startedDexUsers.length)
+  console.log("Completed trade users:", completedTradeUsers.length)
+
+  // Calculate trends data based on REAL quest completion dates and selected dateRange
+  // Use allUsers for proper cumulative chart (not filtered by dateRange)
   const calculateTrendsFromUsers = () => {
-    if (!users || users.length === 0) {
+    if (!allUsers || allUsers.length === 0) {
+      console.log("⚠️ No allUsers data available for chart");
       return {
         completedTrade: [],
         connectedCereWallet: [],
@@ -98,35 +110,61 @@ export function OverviewView({
       }
     }
 
-    // Get all unique dates from user activities and sort them
-    const allDates = users
-      .filter(user => user.last_activity)
-      .map(user => new Date(user.last_activity!).toISOString().split('T')[0])
-      .filter((date, index, self) => self.indexOf(date) === index)
-      .sort()
+    // Use the selected date range from date picker
+    const startDate = dateRange.from.toISOString().split('T')[0]
+    const endDate = dateRange.to.toISOString().split('T')[0]
 
-    // Calculate cumulative data for each date
+    console.log("📅 Using SELECTED date range for trends:", {
+      startDate,
+      endDate,
+      fromPicker: dateRange.from.toLocaleDateString(),
+      toPicker: dateRange.to.toLocaleDateString()
+    })
+
+    // Generate all dates in the SELECTED range
+    const allDates = []
+    const currentDate = new Date(startDate)
+    const finalDate = new Date(endDate)
+
+    while (currentDate <= finalDate) {
+      allDates.push(currentDate.toISOString().split('T')[0])
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+
+    // Calculate cumulative data for each date using ALL users (not filtered by dateRange)
     const trends = allDates.map(currentDate => {
-      // Count users who had activity up to this date
-      const usersUpToDate = users.filter(user => {
+
+      // CUMULATIVE LOGIC: Count ALL users who were active UP TO this date (regardless of startDate)
+      const usersActiveByDate = allUsers.filter(user => {
+        // Use last_activity for determining when user was active
         if (!user.last_activity) return false
-        const userDate = new Date(user.last_activity).toISOString().split('T')[0]
-        return userDate <= currentDate
+        const userActivityDate = new Date(user.last_activity).toISOString().split('T')[0]
+        return userActivityDate <= currentDate  // ✅ Only filter by currentDate, not startDate
       })
 
-      // Count users in each stage up to this date
-      const startedCount = usersUpToDate.filter(user => {
+      // Count users who STARTED DEX (have DEX task and were active by this date)
+      const startedCount = usersActiveByDate.filter(user => {
         const dexTask = user.quests?.customTasks?.find((task: any) => task.subtype === "dex")
         return !!dexTask
       }).length
 
-      const connectedCount = usersUpToDate.filter(user => 
+      // Count users who CONNECTED wallet (have wallet address and were active by this date)
+      const connectedCount = usersActiveByDate.filter(user =>
         user.external_wallet_address
       ).length
 
-      const completedCount = usersUpToDate.filter(user => {
+      // Count users who COMPLETED DEX (have completed DEX task and were active by this date)
+      // Use completed_at date if available, otherwise use last_activity
+      const completedCount = allUsers.filter(user => {
         const dexTask = user.quests?.customTasks?.find((task: any) => task.subtype === "dex")
-        return dexTask?.completed === true
+        if (!dexTask?.completed) return false
+
+        // Use completed_at if available, otherwise fall back to last_activity
+        const completionDate = user.completed_at || user.last_activity
+        if (!completionDate) return false
+
+        const userCompletionDate = new Date(completionDate).toISOString().split('T')[0]
+        return userCompletionDate <= currentDate  // ✅ Only filter by currentDate, not startDate
       }).length
 
       return {
@@ -137,6 +175,16 @@ export function OverviewView({
       }
     })
 
+    console.log("📊 Calculated CUMULATIVE trends for selected period:", {
+      dateRange: `${startDate} to ${endDate}`,
+      totalDays: trends.length,
+      finalValues: {
+        started: trends[trends.length - 1]?.started || 0,
+        connected: trends[trends.length - 1]?.connected || 0,
+        completed: trends[trends.length - 1]?.completed || 0,
+      }
+    })
+
     // Convert to API format
     const result = {
       startedDexSwap: trends.map(({ date, started }) => ({ date, value: started })),
@@ -144,10 +192,11 @@ export function OverviewView({
       completedTrade: trends.map(({ date, completed }) => ({ date, value: completed }))
     }
 
-    console.log("Calculated trends data:", result)
-    console.log("All dates found:", allDates)
-    console.log("Users with last_activity:", users.filter(u => u.last_activity).length)
-    
+    console.log("✅ Using CUMULATIVE logic with ALL users (no date filtering)")
+    console.log("Display period:", `${dateRange.from.toLocaleDateString()} - ${dateRange.to.toLocaleDateString()}`)
+    console.log("All users available for chart:", allUsers.length)
+    console.log("Filtered users for tables:", users.length)
+
     return result
   }
 

@@ -57,6 +57,7 @@ export default function CommunityIntelligenceDashboard() {
   const [funnelData, setFunnelData] = React.useState<FunnelData>();
   const [communityData, setCommunityData] = React.useState<ICommunity>();
   const [users, setUsers] = useState<User[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]); // All users for cumulative chart
 
   const { token, isAuthenticated, walletStatus, connect } = useAuth();
 
@@ -172,6 +173,7 @@ export default function CommunityIntelligenceDashboard() {
       setFunnelData(undefined);
       setCommunityData(undefined);
       setUsers([]);
+      setAllUsers([]);
       setIsLoadingOrganizations(false);
     }
   }, [isAuthenticated]);
@@ -237,13 +239,24 @@ export default function CommunityIntelligenceDashboard() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const response = await api.getUsers({
-          campaignId: selectedCampaign,
-          organizationId: selectedOrganization,
-          dateFrom: dateRange.from.toISOString(),
-          dateTo: dateRange.to.toISOString(),
-        });
-        setUsers(response);
+        // Load both filtered users (for tables) and all users (for cumulative chart)
+        const [filteredUsers, allUsersData] = await Promise.all([
+          api.getUsers({
+            campaignId: selectedCampaign,
+            organizationId: selectedOrganization,
+            dateFrom: dateRange.from.toISOString(),
+            dateTo: dateRange.to.toISOString(),
+          }),
+          api.getAllUsers({
+            campaignId: selectedCampaign,
+            organizationId: selectedOrganization,
+          })
+        ]);
+        
+        setUsers(filteredUsers);
+        setAllUsers(allUsersData);
+        
+        console.log("📊 Data loaded - Filtered users:", filteredUsers.length, "All users:", allUsersData.length);
       } catch (error) {
         console.error("Failed to load users data:", error);
       } finally {
@@ -274,7 +287,7 @@ export default function CommunityIntelligenceDashboard() {
 
     setIsRefreshing(true);
     try {
-      const [funnel, community, usersData] = await Promise.all([
+      const [funnel, community, usersData, allUsersData] = await Promise.all([
         api.getFunnelData({
           campaignId: selectedCampaign,
           dateFrom: dateRange.from.toISOString(),
@@ -287,11 +300,16 @@ export default function CommunityIntelligenceDashboard() {
           dateFrom: dateRange.from.toISOString(),
           dateTo: dateRange.to.toISOString(),
         }),
+        api.getAllUsers({
+          campaignId: selectedCampaign,
+          organizationId: selectedOrganization,
+        }),
       ]);
 
       setFunnelData(funnel);
       setCommunityData(community);
       setUsers(usersData);
+      setAllUsers(allUsersData);
     } catch (error) {
       console.error("Failed to refresh data:", error);
     } finally {
@@ -384,6 +402,7 @@ export default function CommunityIntelligenceDashboard() {
             dateRange={dateRange}
             isLoading={isLoading}
             users={users}
+            allUsers={allUsers}
             onViewTelegramActivity={handleViewTelegramActivity}
           />
         );
@@ -411,6 +430,8 @@ export default function CommunityIntelligenceDashboard() {
             selectedCampaign={selectedCampaign}
             dateRange={dateRange}
             isLoading={isLoading}
+            allUsers={allUsers}
+            onViewTelegramActivity={handleViewTelegramActivity}
           />
         );
     }
