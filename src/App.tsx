@@ -35,6 +35,7 @@ export default function CommunityIntelligenceDashboard() {
 
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignsLoaded, setCampaignsLoaded] = useState(false);
   const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(false);
 
   const [selectedView, setSelectedView] = useState<
@@ -42,7 +43,7 @@ export default function CommunityIntelligenceDashboard() {
   >("dashboard");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [activeView, setActiveView] = useState("overview");
-  
+
   // Track if this is the first render to avoid resetting on initial load
   const isFirstRender = useRef(true);
   const previousOrganization = useRef<string | null>(null);
@@ -75,30 +76,81 @@ export default function CommunityIntelligenceDashboard() {
     loadOrganizations();
   }, [token]);
 
-  useEffect(() => {
-    const loadCampaigns = async () => {
-      if (!token || !selectedOrganization) return;
+    useEffect(() => {
+    console.log("🔍 App.tsx - loadCampaigns useEffect triggered:", {
+      token: !!token,
+      selectedOrganization,
+      previousOrg: previousOrganization.current
+    });
 
-      const organizationChanged = previousOrganization.current !== selectedOrganization;
+    const loadCampaigns = async () => {
+      if (!token || !selectedOrganization) {
+        console.log("🚫 App.tsx - Skipping campaign load: missing token or organization");
+        return;
+      }
+
+            const isFirstLoad = previousOrganization.current === null;
+      const organizationChanged = previousOrganization.current !== null && previousOrganization.current !== selectedOrganization;
+      
+      console.log("🔍 App.tsx - Organization change check:", {
+        isFirstLoad,
+        organizationChanged,
+        previous: previousOrganization.current,
+        current: selectedOrganization
+      });
+      
       previousOrganization.current = selectedOrganization;
+
+      // Reset campaigns loaded state when organization changes
+      if (organizationChanged) {
+        console.log("🔄 App.tsx - Organization changed, resetting campaigns loaded state");
+        setCampaignsLoaded(false);
+      }
 
       try {
         const camps = await api.getCampaigns(selectedOrganization, token);
         setCampaigns(camps);
+        setCampaignsLoaded(true);
 
-        // Set campaign when organization changes or no campaign is selected
+                // Set campaign when organization changes or no campaign is selected
         if (camps.length > 0) {
-          if (organizationChanged || !selectedCampaign) {
+          console.log("🔍 App.tsx - Campaign selection logic:", {
+            isFirstLoad,
+            organizationChanged,
+            selectedCampaign,
+            hasSelectedCampaign: !!selectedCampaign,
+            previousOrg: previousOrganization.current,
+            currentOrg: selectedOrganization,
+            availableCampaigns: camps.map(c => c.campaignId.toString())
+          });
+          
+          // Check if selected campaign exists in the available campaigns
+          const isCampaignAvailable = camps.some(camp => 
+            camp.campaignId.toString() === selectedCampaign
+          );
+          
+          if (organizationChanged || !selectedCampaign || (selectedCampaign && !isCampaignAvailable)) {
             const newCampaignId = camps[0].campaignId.toString();
-            console.log("Setting campaign due to organization change:", newCampaignId);
+            let reason = "";
+            if (organizationChanged) reason = "organization changed";
+            else if (!selectedCampaign) reason = "no campaign selected";
+            else if (!isCampaignAvailable) reason = "current campaign not available in new organization";
+            
+            console.log(`🔄 App.tsx - Setting campaign due to ${reason}:`, newCampaignId, "previous campaign:", selectedCampaign);
             setSelectedCampaign(newCampaignId);
+          } else if (isFirstLoad && selectedCampaign && isCampaignAvailable) {
+            console.log("✅ App.tsx - First load: keeping user's campaign:", selectedCampaign);
+          } else {
+            console.log("✅ App.tsx - Keeping current campaign:", selectedCampaign);
           }
         } else {
           // Clear campaign if no campaigns available
+          console.log("🚫 App.tsx - No campaigns available, clearing campaign");
           setSelectedCampaign("");
         }
       } catch (error) {
         console.error("Failed to load campaigns:", error);
+        setCampaignsLoaded(false);
       }
     };
 
@@ -110,6 +162,7 @@ export default function CommunityIntelligenceDashboard() {
     if (!isAuthenticated) {
       setOrganizations([]);
       setCampaigns([]);
+      setCampaignsLoaded(false);
       setFunnelData(undefined);
       setCommunityData(undefined);
       setUsers([]);
@@ -121,10 +174,15 @@ export default function CommunityIntelligenceDashboard() {
   React.useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
+      console.log("🔍 App.tsx - First render, skipping view reset");
       return;
     }
-    
-    console.log("Resetting view due to campaign/organization change");
+
+    console.log("🔄 App.tsx - Resetting view due to campaign/organization change:", {
+      selectedCampaign,
+      selectedOrganization,
+      currentView: selectedView
+    });
     setSelectedView("dashboard");
     setSelectedUser(null);
   }, [selectedCampaign, selectedOrganization]);
@@ -156,7 +214,19 @@ export default function CommunityIntelligenceDashboard() {
   }, [dateRange.from, dateRange.to, selectedCampaign]);
 
   useEffect(() => {
-    if (!selectedCampaign || !selectedOrganization) return;
+    if (!selectedCampaign || !selectedOrganization || !campaignsLoaded) return;
+
+    // Check if selected campaign belongs to the selected organization
+    const isCampaignValid = campaigns.some(camp =>
+      camp.campaignId.toString() === selectedCampaign
+    );
+
+    if (!isCampaignValid) {
+      console.log("🚫 App.tsx - Campaign", selectedCampaign, "doesn't belong to organization", selectedOrganization, "campaigns loaded:", campaignsLoaded);
+      return;
+    }
+
+    console.log("✅ App.tsx - Loading users with campaign:", selectedCampaign, "organization:", selectedOrganization, "campaigns loaded:", campaignsLoaded);
 
     const loadData = async () => {
       setIsLoading(true);
@@ -176,9 +246,26 @@ export default function CommunityIntelligenceDashboard() {
     };
 
     loadData();
-  }, [dateRange.from, dateRange.to, selectedCampaign, selectedOrganization]);
+  }, [dateRange.from, dateRange.to, selectedCampaign, selectedOrganization, campaignsLoaded]);
 
   const refreshData = async () => {
+    console.log("🔄 App.tsx - Manual refresh triggered with campaign:", selectedCampaign, "organization:", selectedOrganization);
+
+    if (!campaignsLoaded) {
+      console.log("🚫 App.tsx - Cannot refresh: Campaigns not loaded yet");
+      return;
+    }
+
+    // Check if selected campaign belongs to the selected organization
+    const isCampaignValid = campaigns.some(camp =>
+      camp.campaignId.toString() === selectedCampaign
+    );
+
+    if (!isCampaignValid) {
+      console.log("🚫 App.tsx - Cannot refresh: Campaign", selectedCampaign, "doesn't belong to organization", selectedOrganization);
+      return;
+    }
+
     setIsRefreshing(true);
     try {
       const [funnel, community, usersData] = await Promise.all([
@@ -427,7 +514,7 @@ export default function CommunityIntelligenceDashboard() {
                 }`}
               >
                 <Home className="w-4 h-4 inline mr-2" />
-                <span className="hidden sm:inline">Overview</span>
+                <span className="hidden sm:inline">Dashboard</span>
                 <span className="sm:hidden">Home</span>
               </button>
 
@@ -440,7 +527,7 @@ export default function CommunityIntelligenceDashboard() {
                 }`}
               >
                 <Activity className="w-4 h-4 inline mr-2" />
-                <span className="hidden sm:inline">User Activity</span>
+                <span className="hidden sm:inline">Campaigns</span>
                 <span className="sm:hidden">Users</span>
               </button>
               <button
@@ -452,7 +539,7 @@ export default function CommunityIntelligenceDashboard() {
                 }`}
               >
                 <Brain className="w-4 h-4 inline mr-2" />
-                <span className="hidden sm:inline">AI Analysis</span>
+                <span className="hidden sm:inline">AI NLP insights</span>
                 <span className="sm:hidden">AI</span>
               </button>
             </div>

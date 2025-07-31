@@ -343,7 +343,7 @@ export const api = {
     dateTo: string;
   }): Promise<User[]> {
     try {
-      console.log("API getUsers params:", {
+      console.log("📡 API getUsers called with params:", {
         campaign_id: campaignId,
         organization_id: organizationId,
         date_from: dateFrom,
@@ -392,57 +392,6 @@ export const api = {
       console.log("Users count:", data.result?.data?.data?.users?.length || 0);
 
       const users = data.result.data.data.users;
-
-      // if (users.length === 0 && (params.date_from || params.date_to)) {
-      //   console.log("Empty result with dates, trying without date filters...");
-      //
-      //   const fallbackParams = {
-      //     campaign_id: campaignId,
-      //     organization_id: organizationId,
-      //     account_id: "6R44Eo6brL3YMMtFuocjgdCN9REzpHHWCGS5AVh49btFN13J",
-      //   };
-      //
-      //   const fallbackResponse = await fetch(
-      //     `${env.RULE_SERVICE_API_URL}/data-service/${env.DATA_SERVICE_ID}/query/get_leaderboard_for_funnel`,
-      //     {
-      //       method: "POST",
-      //       headers: {
-      //         "Content-Type": "application/json",
-      //       },
-      //       body: JSON.stringify({
-      //         params: fallbackParams,
-      //       }),
-      //     },
-      //   );
-      //
-      //   if (fallbackResponse.ok) {
-      //     const fallbackData = await fallbackResponse.json();
-      //     console.log("Fallback response users count:", fallbackData.result?.data?.data?.users?.length || 0);
-      //
-      //     const allUsers = fallbackData.result.data.data.users;
-      //
-      //     if (allUsers.length > 0 && (dateFrom || dateTo)) {
-      //       const fromDate = dateFrom ? new Date(dateFrom) : null;
-      //       const toDate = dateTo ? new Date(dateTo) : null;
-      //
-      //       const filteredUsers = allUsers.filter((user: any) => {
-      //         if (!user.last_activity) return false;
-      //
-      //         const userDate = new Date(user.last_activity);
-      //
-      //         if (fromDate && userDate < fromDate) return false;
-      //         if (toDate && userDate > toDate) return false;
-      //
-      //         return true;
-      //       });
-      //
-      //       console.log("Client-side filtered users count:", filteredUsers.length);
-      //       return filteredUsers;
-      //     }
-      //
-      //     return allUsers;
-      //   }
-      // }
 
       return users;
     } catch (error) {
@@ -620,9 +569,8 @@ export const api = {
         queryId: `group_${groupId}`,
         stats: treeBlob.stats || {},
         users: treeBlob.users || {},
+        conversations: treeBlob.conversations || [],
         metadata: data.metadata,
-        // Fallback for old structure
-        conversations: [],
       };
     } catch (error) {
       logger.error("Error fetching latest tree:", error);
