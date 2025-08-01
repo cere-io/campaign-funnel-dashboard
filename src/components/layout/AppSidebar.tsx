@@ -1,4 +1,4 @@
-import { Home, BarChart3, Activity } from "lucide-react"
+import { Home, BarChart3, Activity, Brain } from "lucide-react"
 import type {FunnelData, ICommunity} from "../../lib/api.ts";
 
 // Navigation items
@@ -17,6 +17,11 @@ const navigationItems = [
     title: "User Activity",
     icon: Activity,
     id: "user-activity",
+  },
+  {
+    title: "AI Analysis",
+    icon: Brain,
+    id: "ai-analysis",
   },
 ]
 
